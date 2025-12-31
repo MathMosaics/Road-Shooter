@@ -363,9 +363,10 @@ class Game {
 
     spawnMonster(x, lane, power) {
         const types = [
-            { id: 'phantom', color: '#00f2ff', hp: 1.2, speed: 6.5, weight: 35, scale: 0.8 },
-            { id: 'stalker', color: '#ff0077', hp: 4.5, speed: 4, weight: 40, scale: 1 },
+            { id: 'phantom', color: '#00f2ff', hp: 1.2, speed: 6.5, weight: 30, scale: 0.8 },
+            { id: 'stalker', color: '#ff0077', hp: 4.5, speed: 4, weight: 30, scale: 1 },
             { id: 'glitch', color: '#39ff14', hp: 3, speed: 5.5, weight: 15, scale: 1, glitch: true },
+            { id: 'invader', color: '#bc13fe', hp: 6, speed: 4.5, weight: 15, scale: 1.1 },
             { id: 'goliath', color: '#ff8c00', hp: 22, speed: 2, weight: 10, scale: 1.9 }
         ];
 
@@ -670,10 +671,32 @@ class Game {
             ctx.fillRect(-28, -28, 56, 56);
         } else if(e.monsterId === 'phantom') {
             ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(18, 18); ctx.lineTo(-18, 18); ctx.closePath(); ctx.fill();
+        } else if(e.monsterId === 'invader') {
+            this.drawInvader(ctx);
         } else {
             ctx.beginPath(); ctx.moveTo(-22, 22); ctx.lineTo(0, -28); ctx.lineTo(22, 22); ctx.closePath(); ctx.fill();
         }
         ctx.shadowBlur = 0;
+    }
+
+    drawInvader(ctx) {
+        // Simple Space Invader style blocks
+        const size = 6;
+        const blocks = [
+            [2,0],[8,0],
+            [3,1],[7,1],
+            [2,2],[3,2],[4,2],[5,2],[6,2],[7,2],[8,2],
+            [1,3],[2,3],[4,3],[5,3],[6,3],[8,3],[9,3],
+            [0,4],[1,4],[2,4],[3,4],[4,4],[5,4],[6,4],[7,4],[8,4],[9,4],[10,4],
+            [0,5],[2,5],[3,5],[4,5],[5,5],[6,5],[7,5],[8,5],[10,5],
+            [0,6],[2,6],[8,6],[10,6],
+            [3,7],[4,7],[6,7],[7,7]
+        ];
+        const ox = -5.5 * size;
+        const oy = -4 * size;
+        blocks.forEach(([bx, by]) => {
+            ctx.fillRect(ox + bx * size, oy + by * size, size - 1, size - 1);
+        });
     }
 
     loop() {
