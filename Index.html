@@ -90,10 +90,10 @@
 
     <div id="menu-overlay" class="overlay" style="display: flex;">
         <h2>NEON ROAD</h2>
-        <p style="color: #888; margin: 10px 0; font-size: 13px;">PRECISION FLIGHT: ACTIVE</p>
+        <p style="color: #888; margin: 10px 0; font-size: 13px;">COMBAT READY</p>
         <button class="btn" onclick="game.start()">Engage Engines</button>
         <button class="btn" style="border-color: var(--neon-purple); color: var(--neon-purple);" onclick="game.openShop()">Upgrade Armory</button>
-        <div id="controls-hint">DRAG TO FLY & AIM · PRECISION MOVEMENT ENABLED</div>
+        <div id="controls-hint">DRAG TO FLY & AIM</div>
     </div>
 
     <div id="shop-overlay" class="overlay">
@@ -162,11 +162,12 @@ class Game {
         this.enemyBullets = [];
         this.particles = [];
         
-        // Fluid Movement Properties
         this.playerX = width / 2;
         this.targetX = width / 2;
         this.velocity = 0;
-        this.isDashing = false; // Phase shift feature disabled but preserved here
+        
+        // DEPRECATED FEATURE FLAG - Preserved as requested
+        this.isDashing = false; 
         
         this.rank = 1;
         this.xp = 0;
@@ -225,15 +226,13 @@ class Game {
         const rankScaling = 1 + (this.rank * 0.3);
         
         if (Math.random() > 0.7) {
-            // Logic Gate / Barrier
-            const value = Math.random() > 0.8 ? -(Math.floor(Math.random()*5 + 3)) : Math.floor(Math.random()*4 + 1);
+            const val = Math.random() > 0.8 ? -(Math.floor(Math.random()*5 + 3)) : Math.floor(Math.random()*4 + 1);
             this.entities.push({
-                type: 'gate', x, y: -80, value, 
-                hp: (value < 0 ? 30 : 15) * rankScaling * this.damage,
+                type: 'gate', x, y: -80, value: val, 
+                hp: 15 * rankScaling,
                 speed: 3 + (this.rank * 0.1)
             });
         } else {
-            // Aggressive Enemy
             const hp = 8 * rankScaling;
             this.entities.push({
                 type: 'enemy', x, y: -50, hp, maxHp: hp, scale: 1.3,
@@ -258,21 +257,19 @@ class Game {
         if (!this.isActive) return;
         this.frame++;
 
-        // FLUID MOVEMENT: Physics-based following
-        const lastX = this.playerX;
+        // Physics: Snappy 1:1 follow
         const dx = this.targetX - this.playerX;
-        this.velocity = dx * 0.18; // Increased snappiness for 1:1 feel
+        this.velocity = dx * 0.22;
         this.playerX += this.velocity;
         
-        // Detection for Dash (Currently disabled for phase logic but kept for future use)
-        // this.isDashing = Math.abs(this.velocity) > 12;
+        // Dash Check (Internal only)
+        this.isDashing = Math.abs(this.velocity) > 15;
 
-        if (this.frame % 40 === 0) this.spawn();
+        if (this.frame % 35 === 0) this.spawn();
 
-        // Weapon fire
         if (this.frame % Math.floor(this.fireRate) === 0) this.fire();
 
-        // Entity Logic
+        // Entity Management
         for (let i = this.entities.length - 1; i >= 0; i--) {
             const e = this.entities[i];
             
@@ -297,17 +294,19 @@ class Game {
                 }
             }
 
-            // Bullet Collision
+            // Bullet to Entity Collision
             for (let j = this.bullets.length - 1; j >= 0; j--) {
                 const b = this.bullets[j];
-                const dist = Math.hypot(b.x - e.x, b.y - e.y);
-                const radius = e.type === 'gate' ? 60 : 40 * e.scale;
+                const hitboxWidth = e.type === 'gate' ? 60 : 25 * e.scale;
+                const hitboxHeight = e.type === 'gate' ? 30 : 25 * e.scale;
 
-                if (dist < radius) {
+                if (Math.abs(b.x - e.x) < hitboxWidth && Math.abs(b.y - e.y) < hitboxHeight) {
                     e.hp -= this.damage;
+                    
                     if (e.type === 'boss') {
                         document.getElementById('boss-hp-fill').style.width = `${(e.hp/e.maxHp)*100}%`;
                     }
+
                     if (e.hp <= 0) {
                         if (e.type === 'gate') {
                             this.squadCount += e.value;
@@ -325,14 +324,14 @@ class Game {
                         this.entities.splice(i, 1);
                         if (this.xp >= this.xpToNext) this.rankUp();
                     }
-                    if (this.currentWeapon.name !== 'RAIL') this.bullets.splice(j, 1);
+                    
+                    this.bullets.splice(j, 1);
                     break;
                 }
             }
 
-            // Player Collision (Fluid check)
+            // Player to Entity Collision
             if (this.entities[i] && Math.abs(e.y - (height - 150)) < 40) {
-                // Check if colliding - Phase Shift (isDashing) check is removed here to ensure impact
                 if (Math.abs(e.x - this.playerX) < 50) {
                     if (e.type === 'gate') {
                         this.squadCount += e.value;
@@ -343,19 +342,20 @@ class Game {
                     }
                 }
             }
+            
             if (e && e.y > height + 200) this.entities.splice(i, 1);
         }
 
-        // Projectile updates
-        this.bullets.forEach((b, k) => {
-            b.y -= 16; 
-            if (b.y < -50) this.bullets.splice(k, 1);
-        });
+        // Bullets
+        for (let i = this.bullets.length - 1; i >= 0; i--) {
+            this.bullets[i].y -= 16;
+            if (this.bullets[i].y < -20) this.bullets.splice(i, 1);
+        }
 
+        // Enemy Bullets
         for (let i = this.enemyBullets.length - 1; i >= 0; i--) {
             const eb = this.enemyBullets[i];
             eb.y += eb.vy;
-            // Collision check - Phase Shift check removed
             if (Math.abs(eb.y - (height - 150)) < 25 && Math.abs(eb.x - this.playerX) < 40) {
                 this.die();
             }
@@ -373,10 +373,11 @@ class Game {
         this.xp = 0;
         this.xpToNext = Math.floor(this.xpToNext * 1.5);
         this.createExplosion(width / 2, height / 2, '#39ff14', 30);
+        this.updateUI();
     }
 
     fire() {
-        const count = Math.min(20, Math.floor(this.squadCount));
+        const count = Math.min(20, Math.max(1, Math.floor(this.squadCount)));
         for (let i = 0; i < count; i++) {
             const row = Math.floor(i / 4);
             const col = i % 4;
@@ -406,13 +407,11 @@ class Game {
     openShop() {
         const container = document.getElementById('shop-items');
         container.innerHTML = '';
-        
         const catalog = [
             { id: 'squadCap', name: 'Engine Capacity', cost: 1500, desc: 'Adds starting ships.' },
             { id: 'fireRate', name: 'Trigger Speed', cost: 1200, desc: 'Faster fire cycles.' },
             { id: 'damage', name: 'Beam Output', cost: 1000, desc: 'Increase bullet damage.' }
         ];
-
         catalog.forEach(item => {
             const level = this.upgrades[item.id] || 0;
             const cost = Math.floor(item.cost * Math.pow(1.7, level));
@@ -428,7 +427,6 @@ class Game {
                              <div style="color:var(--neon-yellow)">${cost}</div>`;
             container.appendChild(div);
         });
-        
         this.toggleOverlay('shop-overlay', true);
     }
 
@@ -436,7 +434,7 @@ class Game {
         ctx.fillStyle = '#050508';
         ctx.fillRect(0, 0, width, height);
 
-        // Subtle background grid
+        // Background Grid
         ctx.strokeStyle = 'rgba(0, 242, 255, 0.03)';
         ctx.lineWidth = 1;
         for(let x=0; x<width; x+=50) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,height); ctx.stroke(); }
@@ -449,7 +447,7 @@ class Game {
         });
         ctx.globalAlpha = 1;
 
-        // Bullets
+        // Player Bullets
         ctx.fillStyle = this.currentWeapon.color;
         this.bullets.forEach(b => {
             ctx.fillRect(b.x-2, b.y, 4, 15);
@@ -479,33 +477,22 @@ class Game {
             }
         });
 
-        // Player Squad (Alpha logic kept but defaulted to 1.0)
+        // Player Ships
         const sCount = Math.max(1, Math.floor(this.squadCount));
-        ctx.globalAlpha = 1.0; 
         ctx.fillStyle = '#00f2ff';
-        
         for (let i = 0; i < sCount; i++) {
             const row = Math.floor(i / 4);
             const col = i % 4;
             const x = this.playerX + (col - 1.5) * 16;
             const y = (height - 150) + row * 20;
-            
-            // Draw small ship shape
             ctx.beginPath();
-            ctx.moveTo(x, y - 8);
-            ctx.lineTo(x + 6, y + 6);
-            ctx.lineTo(x - 6, y + 6);
+            ctx.moveTo(x, y - 8); ctx.lineTo(x + 6, y + 6); ctx.lineTo(x - 6, y + 6);
             ctx.closePath();
             ctx.fill();
-            
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 0.5;
-            ctx.stroke();
         }
-        ctx.globalAlpha = 1.0;
 
-        // Crosshair at finger
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        // UI Guide Line
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
         ctx.setLineDash([5, 5]);
         ctx.beginPath();
         ctx.moveTo(this.targetX, height);
