@@ -55,8 +55,33 @@
             padding: 8px 12px; 
             border-left: 3px solid var(--neon-blue);
             backdrop-filter: blur(5px);
+            min-width: 80px;
         }
         .stat-label { font-size: 10px; color: var(--neon-blue); display: block; text-transform: uppercase; letter-spacing: 2px; }
+
+        #ammo-display {
+            font-size: 11px;
+            color: var(--neon-yellow);
+            display: none;
+            margin-top: 4px;
+        }
+
+        #xp-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            z-index: 10;
+        }
+        #xp-bar {
+            height: 100%;
+            width: 0%;
+            background: var(--neon-green);
+            box-shadow: 0 0 10px var(--neon-green);
+            transition: width 0.3s ease-out;
+        }
 
         .overlay {
             position: absolute;
@@ -74,6 +99,25 @@
             padding: 20px;
             box-sizing: border-box;
         }
+
+        #rank-up-overlay {
+            background: rgba(0,0,0,0.4);
+            pointer-events: none;
+            z-index: 30;
+            display: none;
+        }
+        .rank-text {
+            font-size: 60px;
+            font-weight: 900;
+            color: var(--neon-green);
+            text-shadow: 0 0 30px var(--neon-green);
+            animation: rankPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes rankPop {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
         h2 { color: var(--neon-pink); font-size: 42px; margin: 0; text-shadow: 0 0 15px var(--neon-pink); letter-spacing: 4px; }
         p { margin: 15px 0; color: #888; font-size: 14px; max-width: 250px; line-height: 1.5; }
         
@@ -101,21 +145,31 @@
         }
         .btn:disabled { border-color: #333; color: #333; cursor: not-allowed; }
         
+        .shop-balance {
+            background: rgba(0, 242, 255, 0.1);
+            border: 1px solid var(--neon-blue);
+            padding: 10px 20px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            color: var(--neon-yellow);
+            font-size: 18px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(255, 204, 0, 0.4);
+        }
+
         .shop-grid {
             width: 100%;
             max-width: 340px;
             display: flex;
             flex-direction: column;
             gap: 10px;
-            margin: 20px 0;
+            margin: 10px 0;
             pointer-events: auto;
-            max-height: 45vh;
+            max-height: 40vh;
             overflow-y: auto;
             padding-right: 5px;
         }
-        .shop-grid::-webkit-scrollbar { width: 4px; }
-        .shop-grid::-webkit-scrollbar-thumb { background: var(--neon-blue); border-radius: 10px; }
-
         .shop-item {
             display: flex;
             justify-content: space-between;
@@ -127,7 +181,8 @@
             transition: border 0.2s;
         }
         .shop-item.active { border-color: var(--neon-green); background: rgba(57, 255, 20, 0.05); }
-        .shop-item:hover { border-color: var(--neon-blue); }
+        .shop-item.insufficient { opacity: 0.6; cursor: not-allowed; }
+        
         .item-info { text-align: left; }
         .item-name { display: block; font-size: 14px; color: var(--neon-blue); font-weight: bold; }
         .item-lvl { font-size: 11px; color: #666; margin-top: 2px; display: block; }
@@ -144,12 +199,6 @@
             opacity: 0.5;
             pointer-events: none;
             text-transform: uppercase;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0% { opacity: 0.3; }
-            50% { opacity: 0.7; }
-            100% { opacity: 0.3; }
         }
         #weapon-tag {
             font-size: 10px;
@@ -162,30 +211,38 @@
 <body>
 
 <div id="game-container">
+    <div id="xp-container"><div id="xp-bar"></div></div>
+    
     <div id="ui-layer">
         <div class="stat-box">
             <span class="stat-label">Currency</span>
             <span id="coin-display">0</span>
-            <span id="weapon-tag">PLASMA</span>
+            <div id="weapon-tag">PLASMA</div>
+            <div id="ammo-display">CHARGE: 100</div>
         </div>
         <div class="stat-box" style="text-align: right;">
             <span class="stat-label">Squad Rank</span>
-            <span id="squad-display">1</span>
+            <span id="rank-display">1</span>
         </div>
     </div>
 
     <div id="fire-hint" style="display:none;">Slide to Move & Fire</div>
 
+    <div id="rank-up-overlay" class="overlay">
+        <div class="rank-text">RANK UP</div>
+        <p style="color: var(--neon-green); font-weight: bold; letter-spacing: 2px;">OVERLOAD ENGAGED</p>
+    </div>
+
     <div id="menu-overlay" class="overlay" style="display: flex;">
         <h2>NEON ROAD</h2>
-        <p>The high-speed neon battle for the grid. Command your squad and survive the road.</p>
+        <p>Command your squad and survive the grid. Rank up to unlock devastating potential.</p>
         <button class="btn" onclick="game.start()">Initiate Protocol</button>
         <button class="btn" onclick="game.openShop()">Upgrade Depot</button>
     </div>
 
     <div id="shop-overlay" class="overlay">
         <h2>DEPOT</h2>
-        <p>Enhance your squad's firepower and tech capabilities.</p>
+        <div class="shop-balance">BAL: <span id="shop-coin-display">0</span></div>
         <div id="shop-items" class="shop-grid"></div>
         <button class="btn" onclick="game.toggleOverlay('shop-overlay', false)">Return to Grid</button>
     </div>
@@ -213,36 +270,50 @@ canvas.width = GAME_WIDTH;
 canvas.height = GAME_HEIGHT;
 
 const WEAPONS = {
-    plasma: { name: 'PLASMA', color: '#00f2ff', type: 'projectile', cost: 0 },
-    pulse: { name: 'PULSE', color: '#bc13fe', type: 'pierce', cost: 5000 },
-    nova: { name: 'NOVA', color: '#ffcc00', type: 'explosive', cost: 12000 }
+    plasma: { id: 'plasma', name: 'PLASMA', color: '#00f2ff', type: 'projectile', cost: 0, maxAmmo: Infinity },
+    pulse: { id: 'pulse', name: 'PULSE', color: '#bc13fe', type: 'pierce', cost: 5000, maxAmmo: 150 },
+    nova: { id: 'nova', name: 'NOVA', color: '#ffcc00', type: 'explosive', cost: 12000, maxAmmo: 80 }
 };
 
 class Game {
     constructor() {
+        this.reset(); // Initialize basic state before loading data
         this.loadData();
-        this.reset(true);
         this.setupListeners();
-        this.spawnQueue = [];
         this.loop();
     }
 
     loadData() {
-        const saved = localStorage.getItem('neon_road_pro_v1');
-        this.upgrades = saved ? JSON.parse(saved) : {
-            multiShot: 0,
-            fireRate: 0,
-            damage: 0,
-            coinGain: 0,
-            weaponType: 'plasma',
-            ownedWeapons: ['plasma']
-        };
-        this.totalCoins = parseInt(localStorage.getItem('neon_road_coins_pro')) || 0;
-        this.updateUI();
+        try {
+            const saved = localStorage.getItem('neon_road_pro_v5');
+            this.upgrades = saved ? JSON.parse(saved) : {
+                multiShot: 0,
+                fireRate: 0,
+                damage: 0,
+                coinGain: 0,
+                batteryEfficiency: 0,
+                weaponType: 'plasma',
+                ammo: { pulse: 0, nova: 0 }
+            };
+
+            // Safety check: ensure weapon exists
+            if (!this.upgrades.weaponType || !WEAPONS[this.upgrades.weaponType]) {
+                this.upgrades.weaponType = 'plasma';
+            }
+            
+            this.currentWeapon = WEAPONS[this.upgrades.weaponType];
+            this.totalCoins = parseInt(localStorage.getItem('neon_road_coins_pro')) || 0;
+            this.updateUI();
+        } catch (e) {
+            console.error("Data load failed, resetting defaults", e);
+            this.upgrades = { multiShot: 0, fireRate: 0, damage: 0, coinGain: 0, batteryEfficiency: 0, weaponType: 'plasma', ammo: { pulse: 0, nova: 0 }};
+            this.currentWeapon = WEAPONS.plasma;
+            this.totalCoins = 0;
+        }
     }
 
     saveData() {
-        localStorage.setItem('neon_road_pro_v1', JSON.stringify(this.upgrades));
+        localStorage.setItem('neon_road_pro_v5', JSON.stringify(this.upgrades));
         localStorage.setItem('neon_road_coins_pro', Math.floor(this.totalCoins));
     }
 
@@ -252,19 +323,31 @@ class Game {
         this.entities = [];
         this.bullets = [];
         this.particles = [];
+        this.pickups = [];
         this.frame = 0;
         this.isActive = false;
         this.isFiring = false; 
-        this.squadSize = 1 + this.upgrades.multiShot;
-        this.fireRate = 14 - (this.upgrades.fireRate * 1.2);
-        this.damage = 1 + (this.upgrades.damage * 0.5);
-        this.currentWeapon = WEAPONS[this.upgrades.weaponType || 'plasma'];
+        
+        // Use defaults if upgrades aren't loaded yet
+        const upg = this.upgrades || { multiShot: 0, fireRate: 0, damage: 0, weaponType: 'plasma', ammo: {} };
+        this.squadSize = 1 + upg.multiShot;
+        this.fireRate = 14 - (upg.fireRate * 1.2);
+        this.damage = 1 + (upg.damage * 0.5);
+        this.currentWeapon = WEAPONS[upg.weaponType] || WEAPONS.plasma;
+
         this.shake = 0;
         this.bossTimer = 0;
         this.activeBoss = null;
         this.spawnQueue = [];
-        document.getElementById('fire-hint').style.display = 'none';
-        document.getElementById('weapon-tag').innerText = this.currentWeapon.name;
+        this.rank = 1;
+        this.xp = 0;
+        this.xpToNext = 100;
+        this.rankUpBoost = 0;
+
+        const hint = document.getElementById('fire-hint');
+        if (hint) hint.style.display = 'none';
+        this.updateXPBar();
+        this.updateUI();
     }
 
     setupListeners() {
@@ -274,17 +357,20 @@ class Game {
             this.playerLane = x < (GAME_WIDTH / 2) ? 0 : 1;
         };
         canvas.addEventListener('touchstart', e => { 
+            if (!this.isActive) return;
             e.preventDefault(); 
-            this.isFiring = this.isActive; 
+            this.isFiring = true; 
             updatePos(e.touches[0].clientX); 
         }, {passive: false});
         canvas.addEventListener('touchmove', e => { 
+            if (!this.isActive) return;
             e.preventDefault(); 
             updatePos(e.touches[0].clientX); 
         }, {passive: false});
         canvas.addEventListener('touchend', () => this.isFiring = false);
         canvas.addEventListener('mousedown', e => { 
-            this.isFiring = this.isActive; 
+            if (!this.isActive) return;
+            this.isFiring = true; 
             updatePos(e.clientX); 
         });
         window.addEventListener('mousemove', e => { if (this.isFiring) updatePos(e.clientX); });
@@ -308,7 +394,8 @@ class Game {
     }
 
     toggleOverlay(id, show) {
-        document.getElementById(id).style.display = show ? 'flex' : 'none';
+        const el = document.getElementById(id);
+        if (el) el.style.display = show ? 'flex' : 'none';
     }
 
     openShop() {
@@ -317,10 +404,57 @@ class Game {
     }
 
     updateUI() {
+        if (!this.currentWeapon) this.currentWeapon = WEAPONS.plasma;
+
         const coinEl = document.getElementById('coin-display');
-        const squadEl = document.getElementById('squad-display');
-        if (coinEl) coinEl.innerText = Math.floor(this.totalCoins);
-        if (squadEl) squadEl.innerText = Math.floor(this.squadSize);
+        const shopCoinEl = document.getElementById('shop-coin-display');
+        const rankEl = document.getElementById('rank-display');
+        const wTagEl = document.getElementById('weapon-tag');
+        const ammoEl = document.getElementById('ammo-display');
+
+        if (coinEl) coinEl.innerText = Math.floor(this.totalCoins || 0);
+        if (shopCoinEl) shopCoinEl.innerText = Math.floor(this.totalCoins || 0);
+        if (rankEl) rankEl.innerText = this.rank || 1;
+        
+        if (wTagEl) {
+            wTagEl.innerText = this.currentWeapon.name;
+            wTagEl.style.color = this.currentWeapon.color;
+        }
+
+        if (ammoEl) {
+            if (this.currentWeapon.maxAmmo === Infinity) {
+                ammoEl.style.display = 'none';
+            } else {
+                ammoEl.style.display = 'block';
+                const currentCharge = this.upgrades?.ammo?.[this.upgrades.weaponType] || 0;
+                ammoEl.innerText = `CHARGE: ${Math.floor(currentCharge)}`;
+            }
+        }
+    }
+
+    updateXPBar() {
+        const bar = document.getElementById('xp-bar');
+        if (bar) bar.style.width = `${((this.xp || 0) / (this.xpToNext || 100)) * 100}%`;
+    }
+
+    gainXP(amount) {
+        this.xp += amount;
+        if (this.xp >= this.xpToNext) this.handleRankUp();
+        this.updateXPBar();
+    }
+
+    handleRankUp() {
+        this.rank++;
+        this.xp = 0;
+        this.xpToNext = Math.floor(this.xpToNext * 1.5);
+        this.damage += 0.2; 
+        this.rankUpBoost = 150; 
+        this.shake = 30;
+        const overlay = document.getElementById('rank-up-overlay');
+        if (overlay) overlay.style.display = 'flex';
+        this.createExplosion(GAME_WIDTH / 2, GAME_HEIGHT / 2, '#39ff14', 100);
+        setTimeout(() => { if(overlay) overlay.style.display = 'none'; }, 1200);
+        this.updateUI();
     }
 
     getPowerRating() {
@@ -333,28 +467,27 @@ class Game {
         const x = (lane * LANE_WIDTH) + (LANE_WIDTH / 2);
         const power = this.getPowerRating();
         
-        if (this.bossTimer > 2800 && !this.activeBoss) {
+        if (this.bossTimer > 3200 && !this.activeBoss) {
             this.spawnBoss();
             this.bossTimer = 0;
             return;
         }
 
-        if (Math.random() < 0.12 && power > 25) {
+        if (Math.random() < 0.1 && power > 20) {
             this.queueSwarm(power);
             return;
         }
 
-        if (Math.random() > 0.72) {
+        if (Math.random() > 0.7) {
             const isHazard = Math.random() > 0.75;
-            let startVal = isHazard ? -(Math.floor(Math.random() * 40 + 15)) : Math.floor(Math.random() * 8 + 2);
-            const hitsToBreak = Math.abs(startVal) * (1.3 + (power / 45));
-            
+            let startVal = isHazard ? -(Math.floor(Math.random() * 30 + 10)) : Math.floor(Math.random() * 6 + 2);
+            const hitsToBreak = Math.abs(startVal) * (1.5 + (power / 35));
             this.entities.push({
                 type: 'barrier', x, y: -60, hp: 0, 
                 maxHp: hitsToBreak * this.damage, 
                 value: startVal, originalValue: startVal,
-                speed: 3 + (this.frame/9000),
-                lane, isHazard, pulse: 0
+                speed: 3.5 + (this.frame/8000),
+                lane, isHazard
             });
         } else {
             this.spawnMonster(x, lane, power);
@@ -363,38 +496,41 @@ class Game {
 
     spawnMonster(x, lane, power) {
         const types = [
-            { id: 'phantom', color: '#00f2ff', hp: 1.2, speed: 6.5, weight: 30, scale: 0.8 },
-            { id: 'stalker', color: '#ff0077', hp: 4.5, speed: 4, weight: 30, scale: 1 },
-            { id: 'glitch', color: '#39ff14', hp: 3, speed: 5.5, weight: 15, scale: 1, glitch: true },
-            { id: 'invader', color: '#bc13fe', hp: 6, speed: 4.5, weight: 15, scale: 1.1 },
-            { id: 'goliath', color: '#ff8c00', hp: 22, speed: 2, weight: 10, scale: 1.9 }
+            { id: 'phantom', color: '#00f2ff', hp: 1.5, speed: 7.2, weight: 15, scale: 0.8, xp: 10 },
+            { id: 'stalker', color: '#ff0077', hp: 5.5, speed: 4.5, weight: 15, scale: 1, xp: 25 },
+            { id: 'glitch', color: '#39ff14', hp: 3.8, speed: 6.0, weight: 15, scale: 1, glitch: true, xp: 20 },
+            { id: 'invader', color: '#bc13fe', hp: 8.5, speed: 5.0, weight: 45, scale: 1.1, xp: 40 },
+            { id: 'goliath', color: '#ff8c00', hp: 35.0, speed: 2.5, weight: 10, scale: 2.0, xp: 150 }
         ];
-
         let roll = Math.random() * 100;
         let selected = types[0];
         let rw = 0;
         for (let t of types) { rw += t.weight; if (roll <= rw) { selected = t; break; } }
 
-        const hpMult = 1 + (power / 90) + (this.frame / 5000);
+        const timeScale = 1 + (this.frame / 4500);
+        const hpMult = timeScale * (1 + (power / 30));
+
         this.entities.push({
             type: 'monster', monsterId: selected.id, 
-            x, y: -50, hp: selected.hp * hpMult,
-            speed: selected.speed * (1 + (power / 700)), 
+            x, y: -50, hp: selected.hp * hpMult, maxHp: selected.hp * hpMult,
+            speed: selected.speed * (1 + (this.frame / 12000)), 
             lane, color: selected.color, scale: selected.scale,
-            glitch: selected.glitch
+            glitch: selected.glitch, xp: selected.xp,
+            patternIdx: Math.floor(Math.random() * 5)
         });
     }
 
     queueSwarm(power) {
-        const count = 4 + Math.floor(power/25);
+        const count = 6 + Math.floor(power/15);
         for(let i=0; i<count; i++) {
-            this.spawnQueue.push({ delay: i * 12, x: (Math.random() > 0.5 ? 0.5 : 1.5) * (GAME_WIDTH / 2), power });
+            this.spawnQueue.push({ delay: i * 8, x: (Math.random() > 0.5 ? 0.5 : 1.5) * (GAME_WIDTH / 2), power });
         }
     }
 
     spawnBoss() {
-        const hp = 400 + (this.getPowerRating() * 8);
-        this.activeBoss = { type: 'boss', x: GAME_WIDTH / 2, y: -150, hp, maxHp: hp, speed: 1.2, targetY: 150 };
+        const power = this.getPowerRating();
+        const hp = (600 + (power * 15)) * (1 + (this.frame / 4000));
+        this.activeBoss = { type: 'boss', x: GAME_WIDTH / 2, y: -150, hp, maxHp: hp, speed: 1.6, xp: 2000 };
         this.entities.push(this.activeBoss);
     }
 
@@ -403,13 +539,14 @@ class Game {
         this.frame++;
         this.bossTimer++;
         if (this.shake > 0) this.shake *= 0.9;
+        if (this.rankUpBoost > 0) this.rankUpBoost--;
 
         const targetX = (this.playerLane * LANE_WIDTH) + (LANE_WIDTH / 2);
-        this.currentX += (targetX - this.currentX) * 0.2;
+        this.currentX += (targetX - this.currentX) * 0.22;
+        this.totalCoins += 0.15 * (1 + (this.upgrades.coinGain * 0.25));
+        
+        if (this.frame % 15 === 0) this.updateUI();
 
-        this.totalCoins += 0.5 * (1 + (this.upgrades.coinGain * 0.25));
-
-        // Process Spawn Queue safely
         for (let i = this.spawnQueue.length - 1; i >= 0; i--) {
             this.spawnQueue[i].delay--;
             if (this.spawnQueue[i].delay <= 0) {
@@ -418,19 +555,32 @@ class Game {
             }
         }
 
-        const spawnFreq = Math.max(12, 65 - Math.floor(this.getPowerRating()/1.6));
+        const spawnFreq = Math.max(8, 55 - Math.floor(this.frame/900));
         if (this.frame % spawnFreq === 0) this.spawn();
-        if (this.isFiring && this.frame % Math.max(1, Math.floor(this.fireRate)) === 0) this.fire();
+
+        const curFireRate = this.rankUpBoost > 0 ? this.fireRate * 0.4 : this.fireRate;
+        if (this.isFiring && this.frame % Math.max(1, Math.floor(curFireRate)) === 0) this.fire();
+
+        for (let i = this.pickups.length - 1; i >= 0; i--) {
+            const p = this.pickups[i];
+            p.y += 4;
+            if (Math.hypot(p.x - this.currentX, p.y - (GAME_HEIGHT - 100)) < 40) {
+                this.collectPickup(p);
+                this.pickups.splice(i, 1);
+                continue;
+            }
+            if (p.y > GAME_HEIGHT + 50) this.pickups.splice(i, 1);
+        }
 
         for (let i = this.entities.length - 1; i >= 0; i--) {
             const e = this.entities[i];
             e.y += e.speed;
-            if (e.glitch) e.x += Math.sin(this.frame * 0.15) * 4;
-            if (e.type === 'boss') e.x = (GAME_WIDTH/2) + Math.sin(this.frame * 0.04) * 120;
+            if (e.glitch) e.x += Math.sin(this.frame * 0.2) * 8;
+            if (e.type === 'boss') e.x = (GAME_WIDTH/2) + Math.sin(this.frame * 0.05) * 130;
 
             this.bullets.forEach((b, bi) => {
                 const dist = Math.hypot(b.x - e.x, b.y - e.y);
-                const hitRadius = e.type === 'boss' ? 95 : (42 * (e.scale || 1));
+                const hitRadius = e.type === 'boss' ? 90 : (44 * (e.scale || 1));
                 if (dist < hitRadius) {
                     this.handleHit(e, b);
                     if (this.currentWeapon.type !== 'pierce') this.bullets.splice(bi, 1);
@@ -439,14 +589,19 @@ class Game {
 
             if (!this.entities[i]) continue;
             if (e.type !== 'barrier' && e.hp <= 0) {
+                if (Math.random() < 0.12) {
+                    this.pickups.push({ x: e.x, y: e.y, type: 'battery' });
+                }
+                
+                this.gainXP(e.xp || 10);
                 this.entities.splice(i, 1);
-                this.totalCoins += (e.type === 'boss' ? 5000 : 40);
+                this.totalCoins += (e.type === 'boss' ? 7500 : 55);
                 if (e.type === 'boss') this.activeBoss = null;
                 continue;
             }
             
             if (Math.abs(e.y - (GAME_HEIGHT - 100)) < 55) {
-                if (Math.abs(e.x - this.currentX) < (e.type === 'boss' ? 105 : 50)) {
+                if (Math.abs(e.x - this.currentX) < (e.type === 'boss' ? 100 : 50)) {
                     if (e.type === 'barrier') {
                         this.squadSize += e.isHazard ? (this.squadSize * (e.value/100)) : e.originalValue;
                         this.entities.splice(i, 1);
@@ -459,7 +614,7 @@ class Game {
 
         for (let i = this.bullets.length - 1; i >= 0; i--) {
             const b = this.bullets[i];
-            b.y -= b.vy || 16; 
+            b.y -= b.vy || 18; 
             if (b.life !== undefined) {
                 b.life--;
                 if (b.life <= 0) this.bullets.splice(i, 1);
@@ -468,8 +623,26 @@ class Game {
 
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
-            p.x += p.vx; p.y += p.vy; p.life -= 0.03; 
+            p.x += p.vx; p.y += p.vy; p.life -= 0.04; 
             if (p.life <= 0) this.particles.splice(i, 1); 
+        }
+    }
+
+    collectPickup(p) {
+        if (p.type === 'battery') {
+            const rechargeVal = 15 * (1 + (this.upgrades.batteryEfficiency * 0.3));
+            let rechargedSomething = false;
+            for (const key in this.upgrades.ammo) {
+                const max = WEAPONS[key]?.maxAmmo || 0;
+                if (max > 0) {
+                    this.upgrades.ammo[key] = Math.min(max, (this.upgrades.ammo[key] || 0) + rechargeVal);
+                    rechargedSomething = true;
+                }
+            }
+            if (rechargedSomething) {
+                this.createExplosion(this.currentX, GAME_HEIGHT - 100, '#ffcc00', 15);
+                this.updateUI();
+            }
         }
     }
 
@@ -483,14 +656,16 @@ class Game {
                 const idx = this.entities.indexOf(entity);
                 if (idx > -1) this.entities.splice(idx, 1);
             }
-        } else { entity.hp -= dmg; }
+        } else { 
+            entity.hp -= dmg; 
+        }
 
         if (this.currentWeapon.type === 'explosive') {
-            this.createExplosion(bullet.x, bullet.y, this.currentWeapon.color, 20);
-            this.shake = 12;
+            this.createExplosion(bullet.x, bullet.y, this.currentWeapon.color, 18);
+            this.shake = 10;
             this.entities.forEach(near => {
                 if (near === entity) return;
-                if (Math.hypot(near.x - bullet.x, near.y - bullet.y) < 120) near.hp -= dmg * 0.7;
+                if (Math.hypot(near.x - bullet.x, near.y - bullet.y) < 125) near.hp -= dmg * 0.8;
             });
         }
         this.createExplosion(bullet.x, bullet.y, '#fff', 4);
@@ -498,6 +673,7 @@ class Game {
 
     die() {
         this.isActive = false;
+        this.isFiring = false;
         this.toggleOverlay('death-overlay', true);
         const btn = document.getElementById('btn-buyback');
         if (btn) btn.disabled = this.totalCoins < BUYBACK_COST;
@@ -511,20 +687,34 @@ class Game {
             this.squadSize = Math.max(2, Math.floor(this.squadSize));
             this.toggleOverlay('death-overlay', false);
             this.entities = this.entities.filter(e => e.y < 200); 
+            this.updateUI();
         }
     }
 
     fire() {
+        if (this.currentWeapon.maxAmmo !== Infinity) {
+            const type = this.upgrades.weaponType;
+            if (this.upgrades.ammo[type] > 0) {
+                this.upgrades.ammo[type]--;
+                if (this.upgrades.ammo[type] <= 0) {
+                    this.currentWeapon = WEAPONS.plasma;
+                    this.upgrades.weaponType = 'plasma';
+                }
+            } else {
+                this.currentWeapon = WEAPONS.plasma;
+                this.upgrades.weaponType = 'plasma';
+            }
+        }
+
         const count = Math.min(60, Math.floor(this.squadSize));
-        const weapon = this.currentWeapon;
         for (let i = 0; i < count; i++) {
             const pos = this.getSoldierPosition(i, this.currentX, GAME_HEIGHT - 100);
-            if (weapon.type === 'pierce') {
-                this.bullets.push({ x: pos.x, y: pos.y, vy: 10, life: 60, isPulse: true });
-            } else if (weapon.type === 'explosive') {
-                this.bullets.push({ x: pos.x, y: pos.y, vy: 12, dmgMult: 2.5 });
+            if (this.currentWeapon.type === 'pierce') {
+                this.bullets.push({ x: pos.x, y: pos.y, vy: 11, life: 60, isPulse: true });
+            } else if (this.currentWeapon.type === 'explosive') {
+                this.bullets.push({ x: pos.x, y: pos.y, vy: 14, dmgMult: 2.8 });
             } else {
-                this.bullets.push({ x: pos.x, y: pos.y, vy: 20 });
+                this.bullets.push({ x: pos.x, y: pos.y, vy: 22 });
             }
         }
     }
@@ -541,7 +731,7 @@ class Game {
     createExplosion(x, y, color, count) {
         for (let i = 0; i < count; i++) {
             this.particles.push({
-                x, y, vx: (Math.random() - 0.5) * 14, vy: (Math.random() - 0.5) * 14,
+                x, y, vx: (Math.random() - 0.5) * 15, vy: (Math.random() - 0.5) * 15,
                 life: 1, color
             });
         }
@@ -549,45 +739,53 @@ class Game {
 
     renderShop() {
         const items = [
-            { id: 'plasma', name: 'Standard Plasma', type: 'weapon', cost: 0, desc: 'Reliable fast-fire pulse.' },
-            { id: 'pulse', name: 'Pulse Cannon', type: 'weapon', cost: 5000, desc: 'Piercing energy waves.' },
-            { id: 'nova', name: 'Nova Launcher', type: 'weapon', cost: 12000, desc: 'Heavy area explosions.' },
-            { id: 'multiShot', name: 'Squad Reinforcement', cost: 2000, type: 'upg', desc: '+1 Permanent Unit' },
-            { id: 'damage', name: 'Overclocked Cores', cost: 1500, type: 'upg', desc: '+50% Base Damage' }
+            { id: 'plasma', name: 'Standard Plasma', type: 'weapon', cost: 0, desc: 'Unlimited. Basic Fire.' },
+            { id: 'pulse', name: 'Pulse Cannon', type: 'weapon', cost: 5000, desc: 'Refill Battery (150)' },
+            { id: 'nova', name: 'Nova Launcher', type: 'weapon', cost: 12000, desc: 'Refill Battery (80)' },
+            { id: 'batteryEfficiency', name: 'Energy Scavenger', cost: 3500, type: 'upg', desc: '+30% Recharge from Pickups' },
+            { id: 'multiShot', name: 'Squad Link', cost: 2500, type: 'upg', desc: '+1 Permanent Unit' },
+            { id: 'damage', name: 'Ion Core', cost: 2000, type: 'upg', desc: '+50% Power' }
         ];
-
         const container = document.getElementById('shop-items');
         if (!container) return;
         container.innerHTML = '';
         items.forEach(item => {
             const isWeapon = item.type === 'weapon';
-            const owned = isWeapon ? this.upgrades.ownedWeapons.includes(item.id) : false;
             const active = isWeapon && this.upgrades.weaponType === item.id;
-            const lvl = !isWeapon ? this.upgrades[item.id] : 0;
+            const lvl = !isWeapon ? (this.upgrades[item.id] || 0) : 0;
             const cost = isWeapon ? item.cost : item.cost * (lvl + 1);
+            const needsRefill = isWeapon && item.id !== 'plasma' && (this.upgrades.ammo[item.id] || 0) < WEAPONS[item.id].maxAmmo;
+            const canAfford = this.totalCoins >= (needsRefill ? cost : (isWeapon ? 0 : cost));
 
             const div = document.createElement('div');
-            div.className = `shop-item ${active ? 'active' : ''}`;
+            div.className = `shop-item ${active ? 'active' : ''} ${!canAfford ? 'insufficient' : ''}`;
             div.onclick = () => isWeapon ? this.selectWeapon(item.id, cost) : this.buyUpgrade(item.id, cost);
             
+            let chargeInfo = (isWeapon && item.id !== 'plasma') ? `<br><span style="color:var(--neon-yellow)">[ ${this.upgrades.ammo[item.id] || 0} / ${WEAPONS[item.id].maxAmmo} ]</span>` : "";
             div.innerHTML = `
                 <div class="item-info">
-                    <span class="item-name">${item.name} ${active ? '✓' : ''}</span>
-                    <span class="item-lvl">${isWeapon ? item.desc : 'Rank ' + lvl}</span>
+                    <span class="item-name">${item.name}</span>
+                    <span class="item-lvl">${item.desc}${chargeInfo}</span>
                 </div>
-                <div class="item-cost">${(isWeapon && owned) ? 'READY' : cost}</div>
+                <div class="item-cost">${(isWeapon && !needsRefill && item.id !== 'plasma') ? 'LOADED' : cost}</div>
             `;
             container.appendChild(div);
         });
+        this.updateUI();
     }
 
     selectWeapon(id, cost) {
-        if (this.upgrades.ownedWeapons.includes(id)) {
+        const weaponDef = WEAPONS[id];
+        if (id !== 'plasma' && (this.upgrades.ammo[id] || 0) < weaponDef.maxAmmo) {
+            if (this.totalCoins >= cost) {
+                this.totalCoins -= cost;
+                this.upgrades.ammo[id] = weaponDef.maxAmmo;
+                this.upgrades.weaponType = id;
+                this.currentWeapon = weaponDef;
+            }
+        } else {
             this.upgrades.weaponType = id;
-        } else if (this.totalCoins >= cost) {
-            this.totalCoins -= cost;
-            this.upgrades.ownedWeapons.push(id);
-            this.upgrades.weaponType = id;
+            this.currentWeapon = weaponDef;
         }
         this.saveData(); this.renderShop(); this.updateUI();
     }
@@ -595,7 +793,7 @@ class Game {
     buyUpgrade(id, cost) {
         if (this.totalCoins >= cost) {
             this.totalCoins -= cost;
-            this.upgrades[id]++;
+            this.upgrades[id] = (this.upgrades[id] || 0) + 1;
             this.saveData(); this.renderShop(); this.updateUI();
         }
     }
@@ -603,13 +801,20 @@ class Game {
     draw() {
         ctx.save();
         if (this.shake > 1) ctx.translate((Math.random()-0.5)*this.shake, (Math.random()-0.5)*this.shake);
-        ctx.fillStyle = '#050508';
-        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        ctx.fillStyle = '#050508'; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        
+        ctx.strokeStyle = 'rgba(0, 242, 255, 0.1)'; ctx.lineWidth = 1;
+        for(let i=0; i<GAME_HEIGHT; i+=50) {
+            let offset = (this.frame * 5) % 50;
+            ctx.beginPath(); ctx.moveTo(0, i + offset); ctx.lineTo(GAME_WIDTH, i + offset); ctx.stroke();
+        }
 
-        // Road Lines
-        ctx.strokeStyle = 'rgba(0, 242, 255, 0.1)'; ctx.setLineDash([20, 40]);
-        ctx.beginPath(); ctx.moveTo(GAME_WIDTH/2, 0); ctx.lineTo(GAME_WIDTH/2, GAME_HEIGHT); ctx.stroke();
-        ctx.setLineDash([]);
+        this.pickups.forEach(p => {
+            ctx.fillStyle = '#ffcc00'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.rect(p.x - 10, p.y - 15, 20, 30); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#000'; ctx.fillRect(p.x - 5, p.y - 8, 10, 16);
+            ctx.fillStyle = '#39ff14'; ctx.fillRect(p.x - 5, p.y + 4, 10, 4);
+        });
 
         this.particles.forEach(p => {
             ctx.globalAlpha = p.life; ctx.fillStyle = p.color;
@@ -617,39 +822,29 @@ class Game {
         });
         ctx.globalAlpha = 1;
 
+        const bulletColor = this.currentWeapon?.color || '#00f2ff';
         this.bullets.forEach(b => {
-            ctx.fillStyle = this.currentWeapon.color;
+            ctx.fillStyle = this.rankUpBoost > 0 ? '#fff' : bulletColor;
             if (b.isPulse) {
-                ctx.beginPath(); ctx.arc(b.x, b.y, 14, 0, Math.PI*2); ctx.lineWidth=2; ctx.strokeStyle=this.currentWeapon.color; ctx.stroke();
+                ctx.beginPath(); ctx.arc(b.x, b.y, 16, 0, Math.PI*2); ctx.lineWidth=3; ctx.strokeStyle=ctx.fillStyle; ctx.stroke();
             } else {
-                ctx.fillRect(b.x - 3, b.y, 6, 24);
-                ctx.shadowBlur = 10; ctx.shadowColor = this.currentWeapon.color;
+                ctx.fillRect(b.x - 3, b.y, 6, 26);
             }
         });
-        ctx.shadowBlur = 0;
 
         this.entities.forEach(e => {
-            ctx.save();
-            ctx.translate(e.x, e.y);
-            const s = e.scale || 1;
-            ctx.scale(s, s);
-
+            ctx.save(); ctx.translate(e.x, e.y);
+            const s = e.scale || 1; ctx.scale(s, s);
             if (e.type === 'barrier') {
                 const color = e.isHazard ? '#ff3131' : '#00f2ff';
-                ctx.strokeStyle = color; ctx.lineWidth = 4;
-                ctx.strokeRect(-65, -30, 130, 60);
+                ctx.strokeStyle = color; ctx.lineWidth = 4; ctx.strokeRect(-65, -30, 130, 60);
                 ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(-65, -30, 130, 60);
                 ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.font = 'bold 26px Arial';
                 ctx.fillText(e.value + (e.isHazard ? "%" : ""), 0, 10);
-                ctx.fillStyle = '#222'; ctx.fillRect(-50, -25, 100, 6);
-                ctx.fillStyle = color; ctx.fillRect(-50, -25, (e.hp/e.maxHp)*100, 6);
             } else if (e.type === 'boss') {
-                ctx.fillStyle = '#ff0077'; ctx.beginPath(); ctx.arc(0, 0, 80, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(0, 0, 65, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle = '#111'; ctx.fillRect(-110, 100, 220, 12);
-                ctx.fillStyle = '#ff0077'; ctx.fillRect(-110, 100, (e.hp/e.maxHp)*220, 12);
+                ctx.fillStyle = '#ff0077'; ctx.beginPath(); ctx.arc(0, 0, 85, 0, Math.PI*2); ctx.fill();
             } else {
-                this.drawMonster(ctx, e);
+                ctx.fillStyle = e.color; ctx.beginPath(); ctx.moveTo(-24, 24); ctx.lineTo(0, -30); ctx.lineTo(24, 24); ctx.closePath(); ctx.fill();
             }
             ctx.restore();
         });
@@ -657,55 +852,18 @@ class Game {
         const displaySquad = Math.floor(this.squadSize);
         for (let i = 0; i < displaySquad; i++) {
             const pos = this.getSoldierPosition(i, this.currentX, GAME_HEIGHT - 100);
-            ctx.fillStyle = '#00f2ff'; 
-            ctx.beginPath(); ctx.arc(pos.x, pos.y, 10, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = this.rankUpBoost > 0 ? '#fff' : '#00f2ff'; 
+            ctx.beginPath(); ctx.arc(pos.x, pos.y, 11, 0, Math.PI * 2); ctx.fill();
             ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
         }
         ctx.restore();
     }
 
-    drawMonster(ctx, e) {
-        ctx.fillStyle = e.color;
-        ctx.shadowBlur = 10; ctx.shadowColor = e.color;
-        if(e.monsterId === 'goliath') {
-            ctx.fillRect(-28, -28, 56, 56);
-        } else if(e.monsterId === 'phantom') {
-            ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(18, 18); ctx.lineTo(-18, 18); ctx.closePath(); ctx.fill();
-        } else if(e.monsterId === 'invader') {
-            this.drawInvader(ctx);
-        } else {
-            ctx.beginPath(); ctx.moveTo(-22, 22); ctx.lineTo(0, -28); ctx.lineTo(22, 22); ctx.closePath(); ctx.fill();
-        }
-        ctx.shadowBlur = 0;
-    }
-
-    drawInvader(ctx) {
-        // Simple Space Invader style blocks
-        const size = 6;
-        const blocks = [
-            [2,0],[8,0],
-            [3,1],[7,1],
-            [2,2],[3,2],[4,2],[5,2],[6,2],[7,2],[8,2],
-            [1,3],[2,3],[4,3],[5,3],[6,3],[8,3],[9,3],
-            [0,4],[1,4],[2,4],[3,4],[4,4],[5,4],[6,4],[7,4],[8,4],[9,4],[10,4],
-            [0,5],[2,5],[3,5],[4,5],[5,5],[6,5],[7,5],[8,5],[10,5],
-            [0,6],[2,6],[8,6],[10,6],
-            [3,7],[4,7],[6,7],[7,7]
-        ];
-        const ox = -5.5 * size;
-        const oy = -4 * size;
-        blocks.forEach(([bx, by]) => {
-            ctx.fillRect(ox + bx * size, oy + by * size, size - 1, size - 1);
-        });
-    }
-
     loop() {
-        this.update();
-        this.draw();
+        this.update(); this.draw();
         requestAnimationFrame(() => this.loop());
     }
 }
-
 const game = new Game();
 </script>
 </body>
