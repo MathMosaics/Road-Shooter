@@ -206,12 +206,25 @@
             margin-top: 4px;
             letter-spacing: 1px;
         }
+        .phase-indicator {
+            position: absolute;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--neon-pink);
+            font-size: 10px;
+            letter-spacing: 4px;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
     </style>
 </head>
 <body>
 
 <div id="game-container">
     <div id="xp-container"><div id="xp-bar"></div></div>
+    <div id="phase-msg" class="phase-indicator">PHASE SHIFT ACTIVE</div>
     
     <div id="ui-layer">
         <div class="stat-box">
@@ -277,7 +290,7 @@ const WEAPONS = {
 
 class Game {
     constructor() {
-        this.reset(); // Initialize basic state before loading data
+        this.reset();
         this.loadData();
         this.setupListeners();
         this.loop();
@@ -296,7 +309,6 @@ class Game {
                 ammo: { pulse: 0, nova: 0 }
             };
 
-            // Safety check: ensure weapon exists
             if (!this.upgrades.weaponType || !WEAPONS[this.upgrades.weaponType]) {
                 this.upgrades.weaponType = 'plasma';
             }
@@ -305,7 +317,7 @@ class Game {
             this.totalCoins = parseInt(localStorage.getItem('neon_road_coins_pro')) || 0;
             this.updateUI();
         } catch (e) {
-            console.error("Data load failed, resetting defaults", e);
+            console.error("Data load failed", e);
             this.upgrades = { multiShot: 0, fireRate: 0, damage: 0, coinGain: 0, batteryEfficiency: 0, weaponType: 'plasma', ammo: { pulse: 0, nova: 0 }};
             this.currentWeapon = WEAPONS.plasma;
             this.totalCoins = 0;
@@ -328,7 +340,10 @@ class Game {
         this.isActive = false;
         this.isFiring = false; 
         
-        // Use defaults if upgrades aren't loaded yet
+        // Anti-Body-Blocking Mechanics
+        this.isPhasing = false; // Becomes true when changing lanes
+        this.phaseTimer = 0;
+        
         const upg = this.upgrades || { multiShot: 0, fireRate: 0, damage: 0, weaponType: 'plasma', ammo: {} };
         this.squadSize = 1 + upg.multiShot;
         this.fireRate = 14 - (upg.fireRate * 1.2);
@@ -344,8 +359,6 @@ class Game {
         this.xpToNext = 100;
         this.rankUpBoost = 0;
 
-        const hint = document.getElementById('fire-hint');
-        if (hint) hint.style.display = 'none';
         this.updateXPBar();
         this.updateUI();
     }
@@ -354,7 +367,14 @@ class Game {
         const updatePos = (clientX) => {
             const rect = canvas.getBoundingClientRect();
             const x = (clientX - rect.left) * (GAME_WIDTH / rect.width);
-            this.playerLane = x < (GAME_WIDTH / 2) ? 0 : 1;
+            const newLane = x < (GAME_WIDTH / 2) ? 0 : 1;
+            
+            // Trigger phase shift when switching lanes to prevent body blocking
+            if (newLane !== this.playerLane && this.isActive) {
+                this.isPhasing = true;
+                this.phaseTimer = 25; // Duration of "Ghost" mode
+            }
+            this.playerLane = newLane;
         };
         canvas.addEventListener('touchstart', e => { 
             if (!this.isActive) return;
@@ -430,6 +450,9 @@ class Game {
                 ammoEl.innerText = `CHARGE: ${Math.floor(currentCharge)}`;
             }
         }
+
+        const pMsg = document.getElementById('phase-msg');
+        if (pMsg) pMsg.style.opacity = this.isPhasing ? 1 : 0;
     }
 
     updateXPBar() {
@@ -541,6 +564,15 @@ class Game {
         if (this.shake > 0) this.shake *= 0.9;
         if (this.rankUpBoost > 0) this.rankUpBoost--;
 
+        // Anti-body blocking logic
+        if (this.isPhasing) {
+            this.phaseTimer--;
+            if (this.phaseTimer <= 0) {
+                this.isPhasing = false;
+                this.updateUI();
+            }
+        }
+
         const targetX = (this.playerLane * LANE_WIDTH) + (LANE_WIDTH / 2);
         this.currentX += (targetX - this.currentX) * 0.22;
         this.totalCoins += 0.15 * (1 + (this.upgrades.coinGain * 0.25));
@@ -600,13 +632,19 @@ class Game {
                 continue;
             }
             
+            // Interaction with player
             if (Math.abs(e.y - (GAME_HEIGHT - 100)) < 55) {
                 if (Math.abs(e.x - this.currentX) < (e.type === 'boss' ? 100 : 50)) {
-                    if (e.type === 'barrier') {
+                    // IF PHASING: ignore collision with monsters to prevent "getting stuck"
+                    if (this.isPhasing && e.type !== 'barrier') {
+                        // Pass through safely
+                    } else if (e.type === 'barrier') {
                         this.squadSize += e.isHazard ? (this.squadSize * (e.value/100)) : e.originalValue;
                         this.entities.splice(i, 1);
                         if (this.squadSize < 1) this.die();
-                    } else { this.die(); }
+                    } else { 
+                        this.die(); 
+                    }
                 }
             }
             if (e.y > GAME_HEIGHT + 150) this.entities.splice(i, 1);
@@ -648,6 +686,10 @@ class Game {
 
     handleHit(entity, bullet) {
         const dmg = this.damage * (bullet.dmgMult || 1);
+        
+        // Push-back mechanic: hitting an entity slows it down briefly
+        if (entity.speed > 0.5) entity.speed -= 0.05;
+
         if (entity.type === 'barrier') {
             entity.hp += dmg;
             if (entity.hp >= entity.maxHp) {
@@ -844,7 +886,10 @@ class Game {
             } else if (e.type === 'boss') {
                 ctx.fillStyle = '#ff0077'; ctx.beginPath(); ctx.arc(0, 0, 85, 0, Math.PI*2); ctx.fill();
             } else {
+                // Visual "glimmer" if entity is weak
+                ctx.globalAlpha = e.hp / e.maxHp + 0.2;
                 ctx.fillStyle = e.color; ctx.beginPath(); ctx.moveTo(-24, 24); ctx.lineTo(0, -30); ctx.lineTo(24, 24); ctx.closePath(); ctx.fill();
+                ctx.globalAlpha = 1;
             }
             ctx.restore();
         });
@@ -852,9 +897,20 @@ class Game {
         const displaySquad = Math.floor(this.squadSize);
         for (let i = 0; i < displaySquad; i++) {
             const pos = this.getSoldierPosition(i, this.currentX, GAME_HEIGHT - 100);
+            
+            // Visual for Phase Shift
+            if (this.isPhasing) {
+                ctx.globalAlpha = 0.5;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#ff0077';
+            }
+            
             ctx.fillStyle = this.rankUpBoost > 0 ? '#fff' : '#00f2ff'; 
             ctx.beginPath(); ctx.arc(pos.x, pos.y, 11, 0, Math.PI * 2); ctx.fill();
             ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+            
+            ctx.globalAlpha = 1.0;
+            ctx.shadowBlur = 0;
         }
         ctx.restore();
     }
