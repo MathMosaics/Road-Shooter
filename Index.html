@@ -27,7 +27,6 @@
         }
         #game-container {
             position: relative;
-            box-shadow: 0 0 60px rgba(0, 242, 255, 0.1);
             background: #000;
             width: 100%;
             height: 100%;
@@ -41,7 +40,7 @@
         }
         #ui-layer {
             position: absolute;
-            top: 0;
+            top: 10px;
             left: 0;
             width: 100%;
             padding: 15px;
@@ -83,73 +82,75 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(5, 5, 10, 0.9);
+            background: rgba(5, 5, 10, 0.95);
             display: none;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             text-align: center;
             z-index: 20;
-            padding: 30px;
+            padding: 20px;
             box-sizing: border-box;
             backdrop-filter: blur(10px);
         }
 
-        h2 { color: var(--neon-pink); font-size: 36px; margin: 0; text-shadow: 0 0 15px var(--neon-pink); letter-spacing: 2px; }
+        h2 { color: var(--neon-pink); font-size: 28px; margin: 0; text-shadow: 0 0 15px var(--neon-pink); letter-spacing: 2px; }
         
         .btn {
-            padding: 18px 30px;
-            font-size: 16px;
+            padding: 15px 25px;
+            font-size: 14px;
             font-weight: bold;
             cursor: pointer;
             border: 2px solid var(--neon-blue);
             background: rgba(0, 242, 255, 0.1);
             color: var(--neon-blue);
-            margin: 10px;
+            margin: 8px;
             border-radius: 12px;
             text-transform: uppercase;
             width: 100%;
             max-width: 280px;
             pointer-events: auto;
         }
-        .btn:active {
-            background: var(--neon-blue);
-            color: #000;
-            transform: scale(0.95);
-        }
+        .btn:active { background: var(--neon-blue); color: #000; transform: scale(0.98); }
 
         .shop-grid {
             width: 100%;
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            margin: 20px 0;
+            gap: 10px;
+            margin: 15px 0;
             pointer-events: auto;
-            max-height: 50vh;
+            max-height: 60vh;
             overflow-y: auto;
+            padding-right: 5px;
         }
         .shop-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: rgba(255,255,255,0.03);
-            padding: 16px;
+            background: rgba(255,255,255,0.05);
+            padding: 14px;
             border-radius: 12px;
             border: 1px solid rgba(255,255,255,0.1);
+            text-align: left;
+        }
+        .shop-item.active {
+            border-color: var(--neon-green);
+            background: rgba(57, 255, 20, 0.1);
         }
         .item-name { display: block; font-size: 14px; font-weight: bold; color: var(--neon-blue); }
-        .item-cost { color: var(--neon-yellow); font-weight: 900; }
+        .item-cost { color: var(--neon-yellow); font-weight: 900; font-size: 14px; }
+        .item-desc { color: #888; font-size: 11px; margin-top: 2px; display: block; }
 
         #phase-msg {
             position: absolute;
-            bottom: 20%;
+            bottom: 25%;
             left: 50%;
             transform: translateX(-50%);
             color: var(--neon-pink);
             font-weight: 900;
             letter-spacing: 5px;
             opacity: 0;
-            transition: opacity 0.3s;
             pointer-events: none;
         }
     </style>
@@ -162,50 +163,49 @@
     
     <div id="ui-layer">
         <div class="stat-box">
-            <span class="stat-label">Currency</span>
+            <span class="stat-label">Stash</span>
             <span id="coin-display" class="stat-value">0</span>
         </div>
         <div class="stat-box" style="text-align: right;">
-            <span class="stat-label">Squad Rank</span>
+            <span class="stat-label">Mission Rank</span>
             <span id="rank-display" class="stat-value">1</span>
         </div>
     </div>
 
     <div id="menu-overlay" class="overlay" style="display: flex;">
         <h2>NEON ROAD</h2>
-        <p style="color: #888; margin: 20px 0;">Optimized for mobile. Command your squad through the neon grid.</p>
-        <button class="btn" onclick="game.start()">Launch Mission</button>
-        <button class="btn" style="border-color: var(--neon-purple); color: var(--neon-purple);" onclick="game.openShop()">Upgrade Depot</button>
+        <p style="color: #888; margin: 15px 0; font-size: 13px;">Mobile Optimized Squad Command</p>
+        <button class="btn" onclick="game.start()">Deploy Squad</button>
+        <button class="btn" style="border-color: var(--neon-purple); color: var(--neon-purple);" onclick="game.openShop()">Armory & Tech</button>
     </div>
 
     <div id="shop-overlay" class="overlay">
-        <h2>DEPOT</h2>
+        <h2>THE ARMORY</h2>
         <div id="shop-items" class="shop-grid"></div>
-        <button class="btn" onclick="game.toggleOverlay('shop-overlay', false)">Close</button>
+        <button class="btn" onclick="game.toggleOverlay('shop-overlay', false)">Back to HQ</button>
     </div>
 
     <div id="death-overlay" class="overlay">
         <h2>SQUAD WIPED</h2>
-        <p id="death-msg">Mission terminated.</p>
-        <button class="btn" onclick="game.start()">Restart</button>
-        <button class="btn" style="border-color: #555; color: #555;" onclick="game.toggleOverlay('death-overlay', false); game.toggleOverlay('menu-overlay', true);">Menu</button>
+        <p id="death-msg" style="color:#aaa; font-size: 14px; margin-bottom: 20px;">Units neutralized.</p>
+        <button class="btn" onclick="game.start()">Redeploy</button>
+        <button class="btn" style="border-color: #555; color: #555;" onclick="game.toggleOverlay('death-overlay', false); game.toggleOverlay('menu-overlay', true);">Exit to Menu</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 </div>
 
 <script>
-/**
- * PERFORMANCE NOTES:
- * 1. Mobile-First Spawning: We spawn fewer, stronger "Elite" invaders to keep entity counts low.
- * 2. Particle Culling: Hard limit on active particles for iPad/Phone GPUs.
- * 3. Broad-phase Collision: Basic lane-based culling.
- */
-
 const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d', { alpha: false }); // Optimization: no alpha on main context
+const ctx = canvas.getContext('2d', { alpha: false });
 
 let width, height, laneWidth;
+
+const WEAPON_TYPES = {
+    plasma: { name: 'PLASMA', color: '#00f2ff', type: 'standard', cost: 0, desc: 'Reliable rapid fire.' },
+    pulse: { name: 'PULSE', color: '#bc13fe', type: 'pierce', cost: 5000, desc: 'Pierces through targets.' },
+    nova: { name: 'NOVA', color: '#ffcc00', type: 'explosive', cost: 8000, desc: 'High damage area shots.' }
+};
 
 function resize() {
     const container = document.getElementById('game-container');
@@ -228,18 +228,20 @@ class Game {
     }
 
     loadData() {
-        const saved = localStorage.getItem('neon_road_v6');
+        const saved = localStorage.getItem('neon_road_v8');
         this.upgrades = saved ? JSON.parse(saved) : {
             multiShot: 0,
             damage: 0,
             coinGain: 0,
-            fireRate: 0
+            fireRate: 0,
+            weaponType: 'plasma',
+            ownedWeapons: ['plasma']
         };
         this.totalCoins = parseInt(localStorage.getItem('neon_road_coins')) || 0;
     }
 
     saveData() {
-        localStorage.setItem('neon_road_v6', JSON.stringify(this.upgrades));
+        localStorage.setItem('neon_road_v8', JSON.stringify(this.upgrades));
         localStorage.setItem('neon_road_coins', Math.floor(this.totalCoins));
     }
 
@@ -257,11 +259,14 @@ class Game {
         this.xpToNext = 100;
         this.isPhasing = false;
         this.phaseTimer = 0;
+        this.shake = 0;
         
-        // Calculated stats
-        this.squadSize = 1 + this.upgrades.multiShot;
-        this.fireRate = 16 - (this.upgrades.fireRate * 1.5);
-        this.damage = 1 + (this.upgrades.damage * 0.4);
+        // Stats combined from base + upgrades
+        this.baseSquadSize = 1 + this.upgrades.multiShot;
+        this.squadSize = this.baseSquadSize;
+        this.fireRate = 18 - (this.upgrades.fireRate * 1.5);
+        this.damage = 1 + (this.upgrades.damage * 0.5);
+        this.currentWeapon = WEAPON_TYPES[this.upgrades.weaponType || 'plasma'];
         
         this.updateUI();
     }
@@ -275,7 +280,7 @@ class Game {
             
             if (newLane !== this.playerLane) {
                 this.isPhasing = true;
-                this.phaseTimer = 20;
+                this.phaseTimer = 25;
             }
             this.playerLane = newLane;
             this.isFiring = true;
@@ -292,8 +297,6 @@ class Game {
         }, { passive: false });
 
         canvas.addEventListener('touchend', () => this.isFiring = false);
-        
-        // Mouse support for dev/testing
         canvas.addEventListener('mousedown', (e) => handleInteraction(e.clientX));
         window.addEventListener('mouseup', () => this.isFiring = false);
     }
@@ -319,35 +322,33 @@ class Game {
     spawn() {
         const lane = Math.random() > 0.5 ? 1 : 0;
         const x = (lane * laneWidth) + (laneWidth / 2);
-        
-        // Balanced difficulty scaling
-        // Instead of hundreds of monsters, we spawn 1-3 based on rank, but they are "Large"
         const rankScaling = 1 + (this.rank * 0.15);
         
-        if (Math.random() > 0.7) {
-            // Barrier
-            const value = Math.random() > 0.8 ? -(Math.floor(Math.random()*20 + 5)) : Math.floor(Math.random()*5 + 1);
+        if (Math.random() > 0.75) {
+            // Barrier (+/- Gates)
+            const isHardGate = Math.random() > 0.85;
+            const value = isHardGate ? -(Math.floor(Math.random()*8 + 5)) : Math.floor(Math.random()*4 + 1);
             this.entities.push({
-                type: 'barrier', x, y: -50, lane, value, hp: 0, maxHp: 10 * rankScaling * this.damage,
-                speed: 3 + (this.rank * 0.1)
+                type: 'barrier', x, y: -50, lane, value, hp: 0, 
+                maxHp: (isHardGate ? 15 : 8) * rankScaling * this.damage,
+                speed: 3.5 + (this.rank * 0.1)
             });
         } else {
-            // Mobile-Optimized Invader (Fewer but tougher)
-            const eliteRoll = Math.random();
-            let type = 'grunt';
+            // Monsters
+            const roll = Math.random();
             let hp = 3 * rankScaling;
             let scale = 1.0;
             let color = '#bc13fe';
 
-            if (eliteRoll > 0.9) {
-                type = 'goliath'; hp *= 15; scale = 2.2; color = '#ff8c00';
-            } else if (eliteRoll > 0.7) {
-                type = 'warrior'; hp *= 4; scale = 1.4; color = '#ff0077';
+            if (roll > 0.92) {
+                hp *= 15; scale = 2.4; color = '#ffcc00'; // Goliath
+            } else if (roll > 0.75) {
+                hp *= 4; scale = 1.6; color = '#ff0077'; // Warrior
             }
 
             this.entities.push({
-                type: 'monster', id: type, x, y: -50, lane, hp, maxHp: hp, scale, color,
-                speed: (3 + Math.random() * 2) * (1 + (this.rank * 0.05)),
+                type: 'monster', x, y: -50, lane, hp, maxHp: hp, scale, color,
+                speed: (3.2 + Math.random() * 2) * (1 + (this.rank * 0.05)),
                 xp: Math.floor(10 * scale)
             });
         }
@@ -357,62 +358,74 @@ class Game {
         if (!this.isActive) return;
         this.frame++;
 
-        // Phase shift logic
+        if (this.shake > 0) this.shake *= 0.9;
         if (this.isPhasing) {
             this.phaseTimer--;
             if (this.phaseTimer <= 0) this.isPhasing = false;
         }
 
-        // Smooth movement
         const targetX = (this.playerLane * laneWidth) + (laneWidth / 2);
-        this.currentX += (targetX - this.currentX) * 0.2;
+        this.currentX += (targetX - this.currentX) * 0.22;
 
-        // Spawning throttle
-        const spawnRate = Math.max(15, 60 - (this.rank * 2));
+        const spawnRate = Math.max(12, 60 - (this.rank * 2));
         if (this.frame % spawnRate === 0) this.spawn();
 
-        // Firing
         if (this.isFiring && this.frame % Math.floor(this.fireRate) === 0) {
             this.fire();
         }
 
-        // Entities update
+        // Collision & Movement
         for (let i = this.entities.length - 1; i >= 0; i--) {
             const e = this.entities[i];
             e.y += e.speed;
 
-            // Collision with bullets
             for (let j = this.bullets.length - 1; j >= 0; j--) {
                 const b = this.bullets[j];
                 const dx = b.x - e.x;
                 const dy = b.y - e.y;
                 const dist = Math.sqrt(dx*dx + dy*dy);
-                const radius = e.type === 'barrier' ? 50 : 35 * e.scale;
+                const radius = e.type === 'barrier' ? 55 : 35 * e.scale;
 
                 if (dist < radius) {
+                    const dmg = this.damage * (b.dmgMult || 1);
+                    
                     if (e.type === 'barrier') {
-                        e.hp += this.damage;
+                        e.hp += dmg;
                         if (e.hp >= e.maxHp) {
                             if (e.value > 0) this.squadSize += e.value;
                             this.createExplosion(e.x, e.y, e.value > 0 ? '#00f2ff' : '#ff3131', 8);
                             this.entities.splice(i, 1);
                         }
                     } else {
-                        e.hp -= this.damage;
+                        e.hp -= dmg;
                         if (e.hp <= 0) {
-                            this.totalCoins += 10 * e.scale;
+                            this.totalCoins += 10 * e.scale * (1 + (this.upgrades.coinGain * 0.2));
                             this.xp += e.xp;
                             this.createExplosion(e.x, e.y, e.color, 12);
                             this.entities.splice(i, 1);
                             if (this.xp >= this.xpToNext) this.rankUp();
                         }
                     }
-                    this.bullets.splice(j, 1);
+
+                    if (this.currentWeapon.type === 'explosive') {
+                        this.createExplosion(b.x, b.y, this.currentWeapon.color, 10);
+                        this.shake = 5;
+                        // Splash damage
+                        this.entities.forEach(near => {
+                           if (near !== e && Math.sqrt((near.x-b.x)**2 + (near.y-b.y)**2) < 100) {
+                               near.hp -= dmg * 0.5;
+                           }
+                        });
+                    }
+
+                    if (this.currentWeapon.type !== 'pierce') {
+                        this.bullets.splice(j, 1);
+                    }
                     break;
                 }
             }
 
-            // Collision with Player
+            // Player Collision
             if (this.entities[i] && Math.abs(e.y - (height - 120)) < 40) {
                 if (Math.abs(e.x - this.currentX) < 40) {
                     if (e.type === 'barrier') {
@@ -424,21 +437,17 @@ class Game {
                     }
                 }
             }
-
             if (e && e.y > height + 100) this.entities.splice(i, 1);
         }
 
-        // Bullets update
         for (let i = this.bullets.length - 1; i >= 0; i--) {
             this.bullets[i].y -= 15;
             if (this.bullets[i].y < -50) this.bullets.splice(i, 1);
         }
 
-        // Particles update (Hard limited to 400 for mobile stability)
-        if (this.particles.length > 400) this.particles.splice(0, this.particles.length - 400);
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
-            p.x += p.vx; p.y += p.vy; p.life -= 0.03;
+            p.x += p.vx; p.y += p.vy; p.life -= 0.04;
             if (p.life <= 0) this.particles.splice(i, 1);
         }
 
@@ -448,21 +457,25 @@ class Game {
     rankUp() {
         this.rank++;
         this.xp = 0;
-        this.xpToNext = Math.floor(this.xpToNext * 1.4);
-        this.damage += 0.2;
-        this.createExplosion(width / 2, height / 2, '#39ff14', 40);
+        this.xpToNext = Math.floor(this.xpToNext * 1.35);
+        this.damage += 0.25;
+        this.createExplosion(width / 2, height / 2, '#39ff14', 30);
         this.updateUI();
     }
 
     fire() {
-        const count = Math.min(15, Math.floor(this.squadSize));
-        const spacing = 20;
+        const count = Math.min(20, Math.floor(this.squadSize));
+        const spacing = 18;
         const totalWidth = (count - 1) * spacing;
         for (let i = 0; i < count; i++) {
-            this.bullets.push({
-                x: (this.currentX - totalWidth / 2) + (i * spacing),
-                y: height - 130
-            });
+            const bx = (this.currentX - totalWidth / 2) + (i * spacing);
+            const by = height - 130;
+            
+            if (this.currentWeapon.type === 'explosive') {
+                this.bullets.push({ x: bx, y: by, dmgMult: 2.5 });
+            } else {
+                this.bullets.push({ x: bx, y: by });
+            }
         }
     }
 
@@ -470,8 +483,8 @@ class Game {
         for (let i = 0; i < count; i++) {
             this.particles.push({
                 x, y, color,
-                vx: (Math.random() - 0.5) * 10,
-                vy: (Math.random() - 0.5) * 10,
+                vx: (Math.random() - 0.5) * 12,
+                vy: (Math.random() - 0.5) * 12,
                 life: 1.0
             });
         }
@@ -486,20 +499,62 @@ class Game {
     openShop() {
         const container = document.getElementById('shop-items');
         container.innerHTML = '';
-        const items = [
-            { id: 'multiShot', name: 'Add Soldier', cost: 1000 },
-            { id: 'damage', name: 'Weapon Power', cost: 800 },
-            { id: 'fireRate', name: 'Overclock', cost: 1500 }
+        
+        // --- WEAPONS SECTION ---
+        const weaponHeader = document.createElement('div');
+        weaponHeader.style = 'color: #555; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; margin: 10px 0 5px 5px; text-align: left;';
+        weaponHeader.innerText = 'Weapon Systems';
+        container.appendChild(weaponHeader);
+
+        Object.keys(WEAPON_TYPES).forEach(key => {
+            const w = WEAPON_TYPES[key];
+            const owned = this.upgrades.ownedWeapons.includes(key);
+            const active = this.upgrades.weaponType === key;
+            const div = document.createElement('div');
+            div.className = `shop-item ${active ? 'active' : ''}`;
+            div.onclick = () => {
+                if (owned) {
+                    this.upgrades.weaponType = key;
+                } else if (this.totalCoins >= w.cost) {
+                    this.totalCoins -= w.cost;
+                    this.upgrades.ownedWeapons.push(key);
+                    this.upgrades.weaponType = key;
+                }
+                this.saveData();
+                this.openShop();
+                this.updateUI();
+            };
+            div.innerHTML = `
+                <div style="flex: 1">
+                    <span class="item-name" style="color:${w.color}">${w.name} ${active ? ' (Equipped)' : (owned ? ' (Owned)' : '')}</span>
+                    <span class="item-desc">${w.desc}</span>
+                </div>
+                <div class="item-cost">${owned ? 'READY' : w.cost}</div>
+            `;
+            container.appendChild(div);
+        });
+
+        // --- UPGRADES SECTION ---
+        const upgradeHeader = document.createElement('div');
+        upgradeHeader.style = 'color: #555; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; margin: 20px 0 5px 5px; text-align: left;';
+        upgradeHeader.innerText = 'Squad Tech';
+        container.appendChild(upgradeHeader);
+
+        const catalog = [
+            { id: 'multiShot', name: 'Elite Recruitment', desc: 'Starting squad size +1', cost: 1000 },
+            { id: 'fireRate', name: 'Rapid Reloader', desc: 'Increases rate of fire', cost: 850 },
+            { id: 'damage', name: 'Plasma Tuning', desc: 'Base weapon damage +50%', cost: 750 },
+            { id: 'coinGain', name: 'Loot Scavenger', desc: 'Earn 20% more coins', cost: 1200 }
         ];
 
-        items.forEach(item => {
+        catalog.forEach(item => {
             const level = this.upgrades[item.id] || 0;
-            const cost = item.cost * (level + 1);
+            const currentCost = Math.floor(item.cost * Math.pow(1.5, level));
             const div = document.createElement('div');
             div.className = 'shop-item';
             div.onclick = () => {
-                if (this.totalCoins >= cost) {
-                    this.totalCoins -= cost;
+                if (this.totalCoins >= currentCost) {
+                    this.totalCoins -= currentCost;
                     this.upgrades[item.id]++;
                     this.saveData();
                     this.openShop();
@@ -507,79 +562,63 @@ class Game {
                 }
             };
             div.innerHTML = `
-                <div>
-                    <span class="item-name">${item.name}</span>
-                    <small style="color:#666">Level ${level}</small>
+                <div style="flex: 1">
+                    <span class="item-name">${item.name} (Rank ${level})</span>
+                    <span class="item-desc">${item.desc}</span>
                 </div>
-                <div class="item-cost">${cost}</div>
+                <div class="item-cost">${currentCost}</div>
             `;
             container.appendChild(div);
         });
+        
         this.toggleOverlay('shop-overlay', true);
     }
 
-    drawInvader(ctx, x, y, scale, color) {
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.scale(scale, scale);
-        ctx.fillStyle = color;
-        
-        // Classic Invader Shape
-        ctx.beginPath();
-        // Body
-        ctx.fillRect(-15, -10, 30, 15);
-        // Antennas
-        ctx.fillRect(-10, -15, 5, 5);
-        ctx.fillRect(5, -15, 5, 5);
-        // Legs
-        ctx.fillRect(-15, 5, 5, 5);
-        ctx.fillRect(10, 5, 5, 5);
-        ctx.fillRect(-5, 5, 10, 3);
-        
-        // Eyes
-        ctx.fillStyle = '#000';
-        ctx.fillRect(-8, -5, 4, 4);
-        ctx.fillRect(4, -5, 4, 4);
-        
-        ctx.restore();
-    }
-
     draw() {
-        // Clear with slight motion blur feel (darker clear)
+        ctx.save();
+        if (this.shake > 0.5) {
+            ctx.translate((Math.random()-0.5)*this.shake, (Math.random()-0.5)*this.shake);
+        }
+        
         ctx.fillStyle = '#050508';
         ctx.fillRect(0, 0, width, height);
 
-        // Draw Lanes
-        ctx.strokeStyle = 'rgba(0, 242, 255, 0.05)';
+        // Lanes
+        ctx.strokeStyle = 'rgba(0, 242, 255, 0.08)';
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(laneWidth, 0); ctx.lineTo(laneWidth, height);
         ctx.stroke();
 
-        // Draw Particles
         this.particles.forEach(p => {
             ctx.globalAlpha = p.life;
             ctx.fillStyle = p.color;
-            ctx.fillRect(p.x, p.y, 3, 3);
+            ctx.fillRect(p.x, p.y, 4, 4);
         });
         ctx.globalAlpha = 1;
 
-        // Draw Bullets
         ctx.fillStyle = '#fff';
         this.bullets.forEach(b => {
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = '#00f2ff';
-            ctx.fillRect(b.x - 2, b.y, 4, 20);
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = this.currentWeapon.color;
+            if (this.currentWeapon.type === 'pierce') {
+                ctx.fillStyle = this.currentWeapon.color;
+                ctx.fillRect(b.x - 6, b.y, 12, 30);
+            } else if (this.currentWeapon.type === 'explosive') {
+                ctx.fillStyle = this.currentWeapon.color;
+                ctx.beginPath(); ctx.arc(b.x, b.y, 8, 0, Math.PI*2); ctx.fill();
+            } else {
+                ctx.fillRect(b.x - 2, b.y, 4, 22);
+            }
             ctx.shadowBlur = 0;
         });
 
-        // Draw Entities
         this.entities.forEach(e => {
             if (e.type === 'barrier') {
                 ctx.strokeStyle = e.value > 0 ? '#00f2ff' : '#ff3131';
                 ctx.lineWidth = 3;
                 ctx.strokeRect(e.x - 60, e.y - 25, 120, 50);
-                ctx.fillStyle = 'rgba(0,0,0,0.8)';
+                ctx.fillStyle = 'rgba(0,0,0,0.85)';
                 ctx.fillRect(e.x - 60, e.y - 25, 120, 50);
                 
                 ctx.fillStyle = ctx.strokeStyle;
@@ -587,34 +626,51 @@ class Game {
                 ctx.textAlign = 'center';
                 ctx.fillText((e.value > 0 ? '+' : '') + e.value, e.x, e.y + 8);
                 
-                // HP Bar for barriers
                 ctx.fillStyle = 'rgba(255,255,255,0.1)';
-                ctx.fillRect(e.x - 40, e.y + 30, 80, 4);
+                ctx.fillRect(e.x - 40, e.y + 30, 80, 5);
                 ctx.fillStyle = ctx.strokeStyle;
-                ctx.fillRect(e.x - 40, e.y + 30, 80 * (e.hp/e.maxHp), 4);
+                ctx.fillRect(e.x - 40, e.y + 30, 80 * (e.hp/e.maxHp), 5);
             } else {
                 this.drawInvader(ctx, e.x, e.y, e.scale, e.color);
             }
         });
 
-        // Draw Squad
         const sCount = Math.floor(this.squadSize);
-        ctx.fillStyle = this.isPhasing ? 'rgba(0, 242, 255, 0.4)' : '#00f2ff';
+        ctx.fillStyle = this.isPhasing ? 'rgba(0, 242, 255, 0.3)' : '#00f2ff';
+        const rowSize = 5;
         for (let i = 0; i < sCount; i++) {
             const spacing = 22;
-            const rowSize = 5;
             const row = Math.floor(i / rowSize);
             const col = i % rowSize;
             const x = this.currentX + (col - (Math.min(sCount, rowSize) - 1) / 2) * spacing;
             const y = height - 120 + (row * spacing);
             
             ctx.beginPath();
-            ctx.arc(x, y, 8, 0, Math.PI * 2);
+            ctx.arc(x, y, 9, 0, Math.PI * 2);
             ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
+            if (!this.isPhasing) {
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
         }
+        ctx.restore();
+    }
+
+    drawInvader(ctx, x, y, scale, color) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+        ctx.fillStyle = color;
+        ctx.fillRect(-12, -8, 24, 12);
+        ctx.fillRect(-8, -12, 4, 4);
+        ctx.fillRect(4, -12, 4, 4);
+        ctx.fillRect(-12, 4, 4, 4);
+        ctx.fillRect(8, 4, 4, 4);
+        ctx.fillStyle = '#000';
+        ctx.fillRect(-6, -4, 4, 4);
+        ctx.fillRect(2, -4, 4, 4);
+        ctx.restore();
     }
 
     loop() {
