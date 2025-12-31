@@ -3,102 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Road: Refined Combat</title>
+    <title>Neon Road: Legacy</title>
+    <link href="https://fonts.googleapis.com/css2?family=Monoton&display=swap" rel="stylesheet">
     <style>
         :root {
             --neon-blue: #00f2ff;
-            --neon-pink: #ff0077;
             --neon-purple: #bc13fe;
             --neon-red: #ff3131;
             --neon-yellow: #ffcc00;
             --neon-green: #39ff14;
         }
         body { 
-            margin: 0; background: #050508; color: #fff; 
-            font-family: 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; background: #010103; color: #fff; 
+            font-family: 'Courier New', Courier, monospace; 
             overflow: hidden; touch-action: none;
             display: flex; justify-content: center; align-items: center; height: 100vh;
         }
         #game-container {
-            position: relative; background: #000; width: 100%; height: 100%; max-width: 600px;
+            position: relative; background: #000; width: 100%; height: 100%; max-width: 500px;
+            overflow: hidden; border: 2px solid #111;
         }
-        canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+        canvas { display: block; width: 100%; height: 100%; position: absolute; top:0; left:0; }
         
         #ui-layer {
-            position: absolute; top: 10px; left: 0; width: 100%; padding: 15px;
-            box-sizing: border-box; pointer-events: none; display: flex;
-            justify-content: space-between; z-index: 5;
+            position: absolute; top: 0; left: 0; width: 100%; padding: 15px;
+            box-sizing: border-box; pointer-events: none; display: none;
+            justify-content: space-between; z-index: 50;
         }
-        .stat-box { background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); }
-        .stat-label { font-size: 9px; color: var(--neon-blue); display: block; text-transform: uppercase; letter-spacing: 1.5px; }
-        .stat-value { font-size: 18px; font-weight: 900; }
-
-        #xp-container { position: absolute; top: 0; left: 0; width: 100%; height: 6px; background: rgba(255,255,255,0.05); z-index: 10; }
-        #xp-bar { height: 100%; width: 0%; background: var(--neon-green); box-shadow: 0 0 10px var(--neon-green); transition: width 0.3s; }
+        .stat-box { 
+            background: rgba(0,0,0,0.85); padding: 5px 10px; 
+            border: 1px solid var(--neon-blue);
+        }
+        .stat-label { font-size: 10px; color: var(--neon-blue); display: block; text-transform: uppercase; }
+        .stat-value { font-size: 16px; font-weight: bold; }
 
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(5, 5, 10, 0.95); display: none; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 20; padding: 20px;
-            box-sizing: border-box; backdrop-filter: blur(15px);
+            background: rgba(0, 0, 0, 0.4); display: none; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 100; padding: 20px;
+            box-sizing: border-box; text-align: center;
         }
-        h2 { color: var(--neon-pink); font-size: 32px; margin: 0; text-shadow: 0 0 20px var(--neon-pink); }
+
+        h2.neon-title { 
+            font-family: 'Monoton', cursive;
+            color: var(--neon-blue); 
+            font-size: 44px; 
+            margin-bottom: 30px; 
+            letter-spacing: 2px;
+            -webkit-text-stroke: 1px #fff;
+            text-shadow: 0 0 20px rgba(0, 242, 255, 0.8);
+        }
+        
         .btn {
-            padding: 16px; font-size: 14px; font-weight: bold; cursor: pointer;
-            border: 2px solid var(--neon-blue); background: rgba(0, 242, 255, 0.1);
-            color: var(--neon-blue); margin: 8px; border-radius: 12px;
-            text-transform: uppercase; width: 100%; max-width: 280px; pointer-events: auto;
+            padding: 15px 30px; font-size: 14px; cursor: pointer;
+            border: 2px solid var(--neon-blue); background: rgba(0,0,0,0.9);
+            color: var(--neon-blue); margin: 8px; text-transform: uppercase;
+            width: 260px; pointer-events: auto; z-index: 101;
+            transition: all 0.2s;
+            box-shadow: 0 0 10px rgba(0, 242, 255, 0.2);
         }
+        .btn:hover { background: var(--neon-blue); color: #000; box-shadow: 0 0 20px var(--neon-blue); }
+
+        #weapon-timer-ui {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); border: 1px solid var(--neon-purple);
+            padding: 5px 15px; font-size: 12px; color: var(--neon-purple);
+            display: none; z-index: 55; border-radius: 20px;
+        }
+        #rank-tag { font-size: 10px; color: var(--neon-yellow); display: block; margin-top: 2px; }
     </style>
 </head>
 <body>
 
 <div id="game-container">
-    <div id="xp-container"><div id="xp-bar"></div></div>
-    
+    <canvas id="gameCanvas"></canvas>
+
     <div id="ui-layer">
         <div class="stat-box">
-            <span class="stat-label">Stash</span>
+            <span class="stat-label">Credits</span>
             <span id="coin-display" class="stat-value">0</span>
         </div>
-        <div class="stat-box" style="text-align: right;">
-            <span class="stat-label">Mission Rank</span>
-            <span id="rank-display" class="stat-value">1</span>
+        <div class="stat-box" style="border-color: var(--neon-green);">
+            <span class="stat-label" style="color: var(--neon-green);">Objective</span>
+            <span id="objective-count" class="stat-value">100</span>
+            <span id="rank-tag">SECTOR 1</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-label">Squad</span>
+            <span id="squad-display" class="stat-value">1</span>
         </div>
     </div>
 
+    <div id="weapon-timer-ui">OVERCLOCK: 10.0s</div>
+
     <div id="menu-overlay" class="overlay" style="display: flex;">
-        <h2>NEON ROAD</h2>
-        <button class="btn" onclick="game.start()">Engage Engines</button>
-        <button class="btn" style="border-color: var(--neon-purple); color: var(--neon-purple);" onclick="game.openShop()">Upgrade Armory</button>
+        <h2 class="neon-title">NEON ROAD</h2>
+        <button class="btn" onclick="game.start(true)">Launch Mission</button>
+        <button class="btn" onclick="game.openShop()">Black Market</button>
     </div>
 
     <div id="shop-overlay" class="overlay">
-        <h2 style="color: var(--neon-purple)">THE ARMORY</h2>
-        <div id="shop-items" style="width:100%; margin:20px 0;"></div>
-        <button class="btn" onclick="game.toggleOverlay('shop-overlay', false)">Back</button>
+        <h2 class="neon-title" style="font-size: 32px;">DEPOT</h2>
+        <div id="shop-items" style="margin-bottom: 20px;"></div>
+        <button class="btn" onclick="game.closeShop()">Return to Base</button>
     </div>
 
     <div id="death-overlay" class="overlay">
-        <h2 style="color: var(--neon-red)">SQUAD LOST</h2>
-        <button class="btn" onclick="game.start()">Restart</button>
+        <h2 id="death-title" class="neon-title" style="color: var(--neon-red);">TERMINATED</h2>
+        <p id="death-msg" style="margin-bottom: 20px; color: #888;"></p>
+        <button class="btn" id="retry-btn" onclick="game.start(true)">Deploy Again</button>
+        <button class="btn" onclick="game.goToMenu()">Back to Menu</button>
     </div>
-
-    <canvas id="gameCanvas"></canvas>
 </div>
 
 <script>
+const PIXEL_MAPS = {
+    phantom: [[0,0,1,1,1,1,0,0],[0,1,1,1,1,1,1,0],[1,1,0,1,1,0,1,1],[1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1],[1,0,1,0,0,1,0,1],[1,0,1,0,0,1,0,1]],
+    stalker: [[0,0,0,1,1,0,0,0],[0,0,1,1,1,1,0,0],[0,1,1,1,1,1,1,0],[1,1,0,1,1,0,1,1],[1,1,1,1,1,1,1,1],[0,1,0,1,1,0,1,0],[1,0,1,0,0,1,0,1]],
+    glitch: [[1,0,1,0,1,0,1,0],[0,1,0,1,0,1,0,1],[1,1,1,1,1,1,1,1],[1,0,0,1,1,0,0,1],[1,1,1,1,1,1,1,1],[0,1,1,0,0,1,1,0],[1,0,0,1,1,0,0,1]],
+    goliath: [[0,0,1,1,1,1,0,0],[0,1,1,1,1,1,1,0],[1,1,0,1,1,0,1,1],[1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1],[0,1,0,1,1,0,1,0],[1,0,0,0,0,0,0,1]],
+    shielder: [[0,1,1,1,1,1,1,0],[1,1,1,1,1,1,1,1],[1,1,0,0,0,0,1,1],[1,1,0,1,1,0,1,1],[1,1,0,1,1,0,1,1],[1,1,0,0,0,0,1,1],[1,1,1,1,1,1,1,1],[0,1,1,1,1,1,1,0]]
+};
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-
 let width, height;
 
 function resize() {
-    const container = document.getElementById('game-container');
-    width = container.clientWidth;
-    height = container.clientHeight;
-    canvas.width = width;
-    canvas.height = height;
+    width = canvas.width = document.getElementById('game-container').clientWidth;
+    height = canvas.height = document.getElementById('game-container').clientHeight;
 }
 window.addEventListener('resize', resize);
 resize();
@@ -106,367 +139,420 @@ resize();
 class Game {
     constructor() {
         this.loadData();
-        this.reset();
+        this.reset(true);
+        this.setupBackdrops();
         this.setupInput();
+        this.shakeX = 0;
+        this.shakeY = 0;
         this.loop();
     }
 
     loadData() {
-        const saved = localStorage.getItem('neon_road_precise_v2');
-        this.upgrades = saved ? JSON.parse(saved) : {
-            squadCap: 0, damage: 0, fireRate: 0
-        };
+        const saved = localStorage.getItem('neon_road_save');
+        this.upgrades = saved ? JSON.parse(saved) : { squad: 0, dmg: 0, spd: 0 };
         this.totalCoins = parseInt(localStorage.getItem('neon_road_coins')) || 0;
+        this.rank = parseInt(localStorage.getItem('neon_road_rank')) || 1;
     }
 
-    saveData() {
-        localStorage.setItem('neon_road_precise_v2', JSON.stringify(this.upgrades));
-        localStorage.setItem('neon_road_coins', Math.floor(this.totalCoins));
-    }
-
-    reset() {
+    reset(full) {
         this.isActive = false;
+        this.isFiring = false;
         this.frame = 0;
         this.entities = [];
         this.bullets = [];
-        this.enemyBullets = [];
-        this.particles = [];
-        
         this.playerX = width / 2;
         this.targetX = width / 2;
+        this.weaponTimer = 0;
+        this.weaponType = 'std';
         
-        this.rank = 1;
-        this.xp = 0;
-        this.xpToNext = 100;
+        if (full) {
+            this.squadCount = 1 + this.upgrades.squad;
+            this.monstersToKill = 100 + (this.rank - 1) * 25;
+        }
+    }
+
+    setupBackdrops() {
+        this.stars = Array.from({length: 150}, () => ({
+            x: Math.random() * width, y: Math.random() * height,
+            s: Math.random() * 2, v: 0.05 + Math.random() * 0.2,
+            a: 0.1 + Math.random() * 0.4
+        }));
         
-        this.squadCount = 1 + this.upgrades.squadCap;
-        this.damage = 1 + (this.upgrades.damage * 1);
-        this.fireCooldown = 0;
-        
-        this.updateUI();
+        this.roads = Array.from({length: 3}, (_, i) => ({
+            offset: i * 400,
+            color: i === 0 ? 'rgba(0, 242, 255, 0.5)' : i === 1 ? 'rgba(188, 19, 254, 0.4)' : 'rgba(57, 255, 20, 0.3)',
+            width: 55 + i * 35
+        }));
+
+        this.ghosts = Array.from({length: 5}, () => ({
+            x: Math.random() * width, y: Math.random() * height,
+            v: 0.2 + Math.random() * 0.4, 
+            type: Object.keys(PIXEL_MAPS)[Math.floor(Math.random()*5)],
+            color: ['#00f2ff', '#bc13fe', '#39ff14'][Math.floor(Math.random()*3)]
+        }));
     }
 
     setupInput() {
-        const handleMove = (clientX) => {
-            if (!this.isActive) return;
+        const move = (e) => {
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const rect = canvas.getBoundingClientRect();
-            this.targetX = clientX - rect.left;
+            this.targetX = (clientX - rect.left) * (width / rect.width);
         };
-        canvas.addEventListener('touchstart', (e) => handleMove(e.touches[0].clientX));
-        canvas.addEventListener('touchmove', (e) => handleMove(e.touches[0].clientX));
-        canvas.addEventListener('mousedown', (e) => { this.mouseDown = true; handleMove(e.clientX); });
-        window.addEventListener('mousemove', (e) => { if(this.mouseDown) handleMove(e.clientX); });
-        window.addEventListener('mouseup', () => this.mouseDown = false);
+        const down = (e) => { if (!this.isActive) return; this.isFiring = true; move(e); };
+        const up = () => { this.isFiring = false; };
+        canvas.addEventListener('mousemove', move);
+        canvas.addEventListener('mousedown', down);
+        window.addEventListener('mouseup', up);
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); down(e); }, {passive: false});
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); move(e); }, {passive: false});
+        canvas.addEventListener('touchend', up);
     }
 
-    start() {
-        this.reset();
+    start(full) {
+        this.reset(full);
         this.isActive = true;
-        this.toggleOverlay('menu-overlay', false);
-        this.toggleOverlay('death-overlay', false);
-    }
-
-    toggleOverlay(id, show) {
-        document.getElementById(id).style.display = show ? 'flex' : 'none';
+        document.getElementById('menu-overlay').style.display = 'none';
+        document.getElementById('death-overlay').style.display = 'none';
+        document.getElementById('shop-overlay').style.display = 'none';
+        document.getElementById('ui-layer').style.display = 'flex';
+        this.updateUI();
     }
 
     updateUI() {
         document.getElementById('coin-display').innerText = Math.floor(this.totalCoins);
-        document.getElementById('rank-display').innerText = this.rank;
-        document.getElementById('xp-bar').style.width = `${(this.xp / this.xpToNext) * 100}%`;
+        document.getElementById('objective-count').innerText = Math.max(0, this.monstersToKill);
+        document.getElementById('squad-display').innerText = Math.floor(this.squadCount);
+        document.getElementById('rank-tag').innerText = `SECTOR ${this.rank}`;
     }
 
     spawn() {
-        const x = Math.random() * (width - 100) + 50;
-        const levelMod = 1 + (this.rank * 0.2);
+        if (!this.isActive) return;
+        const x = 50 + Math.random() * (width - 100);
+        const r = Math.random();
 
-        if (Math.random() > 0.6) {
-            // GATES
-            const isNegative = Math.random() > 0.8;
-            const val = isNegative ? -Math.floor(Math.random()*3 + 1) : Math.floor(Math.random()*5 + 1);
+        // Asteroids starting Sector 2
+        if (this.rank >= 2 && Math.random() < 0.05 + (this.rank * 0.01)) {
             this.entities.push({
-                type: 'gate', x, y: -100, value: val, 
-                hp: 10 * levelMod, maxHp: 10 * levelMod,
-                speed: 3 + (this.rank * 0.1),
-                hitTimer: 0
+                type: 'asteroid', x, y: -100, v: 1.2, 
+                hp: 150 * (1 + this.rank * 0.25), 
+                size: 25 + Math.random() * 20, 
+                rot: Math.random() * Math.PI * 2,
+                rotV: (Math.random() - 0.5) * 0.02,
+                flash: 0
             });
-        } else {
-            // MONSTERS
-            const hp = 5 * levelMod;
-            this.entities.push({
-                type: 'enemy', x, y: -100, hp, maxHp: hp, 
-                speed: 4 + Math.random() * 2,
-                fireTimer: Math.random() * 60,
-                hitTimer: 0
+            return;
+        }
+
+        if (r < 0.08) { 
+            this.entities.push({ type: 'tech', x, y: -50, v: 2, hp: 10, flash: 0 });
+        } else if (r < 0.22) { 
+            const isSquad = Math.random() > 0.5;
+            const good = Math.random() > 0.45;
+            const amt = Math.floor(Math.random() * (5 + this.rank)) + 3;
+            this.entities.push({ 
+                type: 'gate', x, y: -50, v: 1.8 + (this.rank * 0.05), good, amt, 
+                currentProgress: good ? 0 : amt, totalCapacity: amt, hp: 50, flash: 0, isSquad 
+            });
+        } else { 
+            const roll = Math.random();
+            let type = 'phantom', color = '#00f2ff', hp = 10, size = 4;
+            if (roll > 0.92) { type = 'goliath'; color = '#ff3131'; hp = 60; size = 7; }
+            else if (roll > 0.8) { type = 'shielder'; color = '#ffcc00'; hp = 40; size = 5; }
+            else if (roll > 0.5) { type = 'stalker'; color = '#39ff14'; hp = 20; size = 4; }
+            else { type = 'glitch'; color = '#bc13fe'; hp = 15; size = 4; }
+            this.entities.push({ 
+                type: 'mon', model: type, x, y: -50, v: 1.5 + Math.random() * 1.5 + (this.rank * 0.1), 
+                hp: hp * (1 + this.rank * 0.15), color, size, flash: 0 
             });
         }
     }
 
     update() {
-        if (!this.isActive) return;
         this.frame++;
+        this.stars.forEach(s => { s.y = (s.y + s.v) % height; });
+        this.ghosts.forEach(g => { g.y = (g.y + g.v) % height; });
 
-        // Smooth follow
-        this.playerX += (this.targetX - this.playerX) * 0.2;
+        this.shakeX = 0;
+        this.shakeY = 0;
 
+        if (!this.isActive) return;
+
+        this.playerX += (this.targetX - this.playerX) * 0.15;
         if (this.frame % 40 === 0) this.spawn();
 
-        // Fire logic
-        this.fireCooldown--;
-        if (this.fireCooldown <= 0) {
-            this.fire();
-            this.fireCooldown = Math.max(5, 15 - this.upgrades.fireRate);
+        if (this.weaponTimer > 0) {
+            this.weaponTimer--;
+            document.getElementById('weapon-timer-ui').style.display = 'block';
+            document.getElementById('weapon-timer-ui').innerText = `${this.weaponType.toUpperCase()} MODE: ${(this.weaponTimer/60).toFixed(1)}s`;
+            if (this.weaponTimer <= 0) {
+                this.weaponType = 'std';
+                document.getElementById('weapon-timer-ui').style.display = 'none';
+            }
         }
 
-        // Entities loop
+        const rate = 15 * (1 - this.upgrades.spd * 0.08);
+        if (this.isFiring && this.frame % Math.max(1, Math.floor(rate)) === 0) this.fire();
+
         for (let i = this.entities.length - 1; i >= 0; i--) {
             const e = this.entities[i];
-            e.y += e.speed;
-            if (e.hitTimer > 0) e.hitTimer--;
+            e.y += e.v;
+            if (e.flash > 0) e.flash--;
 
-            if (e.type === 'enemy') {
-                e.fireTimer++;
-                if (e.fireTimer > 90) {
-                    this.enemyBullets.push({ x: e.x, y: e.y, vy: 6 });
-                    e.fireTimer = 0;
+            if (e.type === 'asteroid') {
+                e.rot += e.rotV;
+                const dToPlayer = Math.abs(e.y - (height - 100));
+                if (dToPlayer < 400 && e.y < height) {
+                    const intensity = (1 - (dToPlayer / 400)) * 4;
+                    this.shakeX = (Math.random() - 0.5) * intensity;
+                    this.shakeY = (Math.random() - 0.5) * intensity;
                 }
             }
 
-            // Bullet -> Entity Collision
-            for (let j = this.bullets.length - 1; j >= 0; j--) {
-                const b = this.bullets[j];
-                const dx = Math.abs(b.x - e.x);
-                const dy = Math.abs(b.y - e.y);
-                
-                const hitW = e.type === 'gate' ? 70 : 30;
-                const hitH = e.type === 'gate' ? 40 : 30;
-
-                if (dx < hitW && dy < hitH) {
-                    e.hp -= this.damage;
-                    e.hitTimer = 3; // Flash white
-                    this.bullets.splice(j, 1);
-
-                    // If it's a gate, update the visual value based on damage
-                    if (e.type === 'gate' && e.hp > 0 && e.value > 0) {
-                        // Every 2 points of damage reduces gate value by 1 (optional mechanic)
-                        // Or just let the gate stay until HP is 0
-                    }
-
-                    if (e.hp <= 0) {
-                        if (e.type === 'gate') {
-                            this.squadCount += e.value;
-                            this.createExplosion(e.x, e.y, e.value > 0 ? '#00f2ff' : '#f00');
-                        } else {
-                            this.totalCoins += 10 * this.rank;
-                            this.xp += 15;
-                            this.createExplosion(e.x, e.y, '#ff0077');
-                            if (this.xp >= this.xpToNext) this.rankUp();
-                        }
-                        this.entities.splice(i, 1);
-                        break;
-                    }
-                }
-            }
-
-            // Player -> Entity Collision (Physical)
-            if (e && Math.abs(e.y - (height - 150)) < 30 && Math.abs(e.x - this.playerX) < 40) {
-                if (e.type === 'gate') {
-                    this.squadCount += e.value;
-                    this.entities.splice(i, 1);
+            const dist = Math.hypot(e.x - this.playerX, e.y - (height - 100));
+            if (dist < (e.type === 'asteroid' ? e.size + 20 : 50)) {
+                if (e.type === 'tech') {
+                    this.weaponType = ['burst', 'pulse', 'plasma'][Math.floor(Math.random()*3)];
+                    this.weaponTimer = 600; this.entities.splice(i, 1);
+                } else if (e.type === 'gate') {
+                    const delta = Math.floor(e.currentProgress);
+                    if (e.good) this.squadCount += delta;
+                    else this.squadCount = Math.max(0, this.squadCount - delta);
+                    this.updateUI(); this.entities.splice(i, 1);
                     if (this.squadCount < 1) this.die();
-                } else {
-                    this.takeDamage(5); // Ramming a monster hurts a lot
-                    this.entities.splice(i, 1);
+                } else if (e.type === 'mon' || e.type === 'asteroid') {
+                    this.squadCount -= (e.type === 'asteroid' ? 5 : 1); 
+                    this.updateUI(); this.entities.splice(i, 1);
+                    if (this.squadCount < 1) this.die();
                 }
             }
-
-            if (e && e.y > height + 100) this.entities.splice(i, 1);
+            if ((e.type === 'mon' || e.type === 'asteroid') && e.hp <= 0) {
+                if (e.type === 'mon') this.monstersToKill--;
+                this.totalCoins += (e.type === 'asteroid' ? 50 : 15); 
+                this.updateUI();
+                if (this.monstersToKill <= 0) { this.win(); return; }
+                this.entities.splice(i, 1);
+            } else if (e.y > height + 120) { this.entities.splice(i, 1); }
         }
 
-        // Bullets movement
-        this.bullets.forEach((b, i) => {
-            b.y -= 15;
-            if (b.y < -50) this.bullets.splice(i, 1);
-        });
-
-        // Enemy Bullets movement
-        for (let i = this.enemyBullets.length - 1; i >= 0; i--) {
-            const eb = this.enemyBullets[i];
-            eb.y += eb.vy;
-            
-            // Tightened Hitbox (Player is at y: height-150, size approx 30px)
-            const pdx = Math.abs(eb.x - this.playerX);
-            const pdy = Math.abs(eb.y - (height - 150));
-            
-            if (pdx < 20 && pdy < 20) {
-                this.takeDamage(1);
-                this.enemyBullets.splice(i, 1);
-            } else if (eb.y > height + 50) {
-                this.enemyBullets.splice(i, 1);
+        for (let i = this.bullets.length - 1; i >= 0; i--) {
+            const b = this.bullets[i]; b.y -= 14; let hit = false;
+            for (let e of this.entities) {
+                if (e.type === 'tech') continue;
+                const hitBox = e.type === 'gate' ? 45 : (e.type === 'asteroid' ? e.size : (e.size ? e.size * 8 : 20));
+                if (Math.hypot(b.x - e.x, b.y - e.y) < hitBox) {
+                    if (e.type === 'gate') {
+                        if (e.good) e.currentProgress = Math.min(e.totalCapacity, e.currentProgress + (b.dmg / 25));
+                        else e.currentProgress = Math.max(0, e.currentProgress - (b.dmg / 25));
+                    } else e.hp -= b.dmg;
+                    e.flash = 3; hit = true; break;
+                }
             }
+            if (hit || b.y < -30) this.bullets.splice(i, 1);
         }
-
-        this.particles.forEach((p, i) => {
-            p.x += p.vx; p.y += p.vy; p.life -= 0.02;
-            if (p.life <= 0) this.particles.splice(i, 1);
-        });
-        
-        if (this.squadCount < 1) this.die();
-        this.updateUI();
-    }
-
-    takeDamage(amt) {
-        this.squadCount -= amt;
-        this.createExplosion(this.playerX, height - 150, '#ff3131', 5);
-        if (this.squadCount < 1) this.die();
-    }
-
-    rankUp() {
-        this.rank++;
-        this.xp = 0;
-        this.xpToNext = Math.floor(this.xpToNext * 1.4);
-        this.createExplosion(width/2, height/2, '#39ff14', 20);
     }
 
     fire() {
-        const count = Math.min(12, Math.max(1, Math.floor(this.squadCount)));
+        const count = Math.floor(this.squadCount);
+        const dmg = 6 + (this.upgrades.dmg * 5);
         for (let i = 0; i < count; i++) {
-            const offset = (i - (count - 1) / 2) * 12;
-            this.bullets.push({ x: this.playerX + offset, y: height - 160 });
+            const pos = this.getAmoebaPos(i, count);
+            if (this.weaponType === 'burst') {
+                this.bullets.push({x: pos.x - 8, y: pos.y, dmg});
+                this.bullets.push({x: pos.x + 8, y: pos.y, dmg});
+            } else if (this.weaponType === 'pulse') {
+                this.bullets.push({x: pos.x, y: pos.y, dmg: dmg * 1.5});
+            } else {
+                this.bullets.push({x: pos.x, y: pos.y, dmg: this.weaponType === 'plasma' ? dmg * 3.5 : dmg});
+            }
         }
     }
 
-    createExplosion(x, y, color, count = 10) {
-        for (let i = 0; i < count; i++) {
-            this.particles.push({
-                x, y, color, life: 1,
-                vx: (Math.random() - 0.5) * 10,
-                vy: (Math.random() - 0.5) * 10
-            });
-        }
-    }
-
-    die() {
-        this.isActive = false;
-        this.toggleOverlay('death-overlay', true);
-        this.saveData();
+    getAmoebaPos(i, total) {
+        if (i === 0) return { x: this.playerX, y: height - 100 };
+        const angle = (i / (total - 1)) * Math.PI * 2 + (this.frame * 0.02);
+        const pulse = Math.sin(this.frame * 0.05 + i) * 14;
+        const drift = Math.cos(this.frame * 0.03 + i) * 6;
+        const r = 48 + pulse;
+        return { x: this.playerX + Math.cos(angle) * r + drift, y: (height - 100) + Math.sin(angle) * (r * 0.65) };
     }
 
     draw() {
-        ctx.fillStyle = '#050508';
-        ctx.fillRect(0, 0, width, height);
+        ctx.save();
+        ctx.translate(this.shakeX, this.shakeY);
+        ctx.fillStyle = '#010103';
+        ctx.fillRect(-10, -10, width + 20, height + 20);
 
-        // Draw entities
-        this.entities.forEach(e => {
-            ctx.save();
-            if (e.hitTimer > 0) ctx.filter = 'brightness(3)';
-            
-            if (e.type === 'gate') {
-                const color = e.value > 0 ? '#00f2ff' : '#ff3131';
-                ctx.strokeStyle = color;
-                ctx.lineWidth = 3;
-                ctx.strokeRect(e.x - 60, e.y - 30, 120, 60);
-                ctx.fillStyle = 'rgba(0,0,0,0.7)';
-                ctx.fillRect(e.x - 60, e.y - 30, 120, 60);
-                
-                // HP Bar for Gate
-                ctx.fillStyle = '#222';
-                ctx.fillRect(e.x - 40, e.y + 15, 80, 4);
-                ctx.fillStyle = color;
-                ctx.fillRect(e.x - 40, e.y + 15, (e.hp/e.maxHp)*80, 4);
+        this.drawSnakingRoads();
+        
+        if (this.isActive) {
+            this.drawGalaxy();
+            this.entities.forEach(e => {
+                if (e.type === 'mon') this.drawPixelSprite(e.model, e.x, e.y, e.size, e.flash ? '#fff' : e.color);
+                else if (e.type === 'asteroid') this.drawAsteroid(e);
+                else if (e.type === 'tech') {
+                    ctx.strokeStyle = '#bc13fe'; ctx.lineWidth = 2;
+                    ctx.strokeRect(e.x-25, e.y-15, 50, 30);
+                    ctx.fillStyle = '#fff'; ctx.font = '10px Courier';
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText('TECH', e.x, e.y);
+                } else if (e.type === 'gate') {
+                    const c = e.good ? '#00f2ff' : '#ff3131';
+                    ctx.strokeStyle = c; ctx.lineWidth = 3;
+                    ctx.strokeRect(e.x-45, e.y-30, 90, 60);
+                    ctx.fillStyle = c; ctx.globalAlpha = 0.2;
+                    const h = 60 * (e.currentProgress / e.totalCapacity);
+                    ctx.fillRect(e.x-45, e.y+30-h, 90, h);
+                    ctx.globalAlpha = 1;
+                    ctx.fillStyle = c; ctx.font = 'bold 16px Courier'; 
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    const label = e.isSquad ? 'S' : 'D';
+                    const val = Math.floor(e.currentProgress);
+                    ctx.fillText(`${label} ${e.good?'+':'-'}${val}`, e.x, e.y);
+                }
+            });
 
-                ctx.fillStyle = color;
-                ctx.font = 'bold 28px monospace';
-                ctx.textAlign = 'center';
-                ctx.fillText((e.value > 0 ? '+' : '') + e.value, e.x, e.y + 8);
-            } else {
-                // Enemy Monster
-                ctx.fillStyle = '#ff0077';
-                ctx.beginPath();
-                ctx.moveTo(e.x, e.y + 20);
-                ctx.lineTo(e.x + 20, e.y - 15);
-                ctx.lineTo(e.x - 20, e.y - 15);
-                ctx.closePath();
-                ctx.fill();
-                // HP bar
-                ctx.fillStyle = '#222';
-                ctx.fillRect(e.x - 15, e.y - 25, 30, 3);
-                ctx.fillStyle = '#ff0077';
-                ctx.fillRect(e.x - 15, e.y - 25, (e.hp/e.maxHp)*30, 3);
+            this.bullets.forEach(b => {
+                ctx.fillStyle = this.weaponType === 'plasma' ? '#bc13fe' : '#00f2ff';
+                ctx.fillRect(b.x-2, b.y, 4, 18);
+            });
+
+            const count = Math.floor(this.squadCount);
+            for (let i = 0; i < count; i++) {
+                const p = this.getAmoebaPos(i, count);
+                ctx.fillStyle = '#fff'; ctx.beginPath();
+                ctx.moveTo(p.x, p.y-10); ctx.lineTo(p.x+8, p.y+8); ctx.lineTo(p.x-8, p.y+8);
+                ctx.closePath(); ctx.fill();
+                ctx.fillStyle = 'rgba(0, 242, 255, 0.4)'; ctx.fillRect(p.x-2, p.y+8, 4, 6);
             }
-            ctx.restore();
-        });
+        }
+        ctx.restore();
+    }
 
-        // Bullets
-        ctx.fillStyle = '#00f2ff';
-        this.bullets.forEach(b => ctx.fillRect(b.x-2, b.y, 4, 15));
+    drawGalaxy() {
+        const grd = ctx.createRadialGradient(width/2, height/2, 50, width/2, height/2, height);
+        grd.addColorStop(0, 'rgba(188, 19, 254, 0.1)');
+        grd.addColorStop(1, 'transparent');
+        ctx.fillStyle = grd; ctx.fillRect(0,0,width,height);
+    }
 
-        // Enemy Bullets
-        ctx.fillStyle = '#ff3131';
-        this.enemyBullets.forEach(eb => {
-            ctx.beginPath(); ctx.arc(eb.x, eb.y, 5, 0, Math.PI*2); ctx.fill();
-        });
-
-        // Particles
-        this.particles.forEach(p => {
-            ctx.globalAlpha = p.life;
-            ctx.fillStyle = p.color;
-            ctx.fillRect(p.x, p.y, 3, 3);
-        });
+    drawSnakingRoads() {
+        this.stars.forEach(s => { ctx.fillStyle = '#fff'; ctx.globalAlpha = s.a; ctx.fillRect(s.x, s.y, s.s, s.s); });
         ctx.globalAlpha = 1;
 
-        // Player Squad
-        const sCount = Math.max(1, Math.floor(this.squadCount));
-        ctx.fillStyle = '#00f2ff';
-        for (let i = 0; i < sCount; i++) {
-            const row = Math.floor(i / 4);
-            const col = i % 4;
-            const px = this.playerX + (col - 1.5) * 15;
-            const py = (height - 150) + row * 15;
+        const roadAlphaMultiplier = this.isActive ? 0.25 : 1.0;
+        this.roads.forEach(road => {
             ctx.beginPath();
-            ctx.moveTo(px, py - 10); ctx.lineTo(px + 7, py + 5); ctx.lineTo(px - 7, py + 5);
-            ctx.closePath();
-            ctx.fill();
+            ctx.strokeStyle = road.color.replace('0.', (parseFloat(road.color.match(/0\.\d+/)[0]) * roadAlphaMultiplier).toFixed(2));
+            ctx.lineWidth = road.width;
+            ctx.lineCap = 'round';
+            for(let y = -50; y < height + 50; y += 15) {
+                const freq = this.isActive ? 0.003 : 0.005;
+                const amp = this.isActive ? 80 : 150;
+                const x = width/2 + Math.sin((y + this.frame*3 + road.offset) * freq) * amp;
+                if (y === -50) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        });
+
+        if (!this.isActive) {
+            this.ghosts.forEach(g => {
+                ctx.globalAlpha = 0.2;
+                const xShift = Math.sin(this.frame*0.015 + g.y)*60;
+                this.drawPixelSprite(g.type, g.x + xShift, g.y, 3, g.color);
+            });
+            ctx.globalAlpha = 1;
         }
     }
 
-    loop() {
-        this.update();
-        this.draw();
-        requestAnimationFrame(() => this.loop());
+    drawAsteroid(e) {
+        ctx.save();
+        ctx.translate(e.x, e.y);
+        ctx.rotate(e.rot);
+        ctx.strokeStyle = e.flash ? '#fff' : '#888';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        for(let i=0; i<8; i++) {
+            const angle = (i/8) * Math.PI * 2;
+            const r = e.size + (Math.sin(i * 1.5) * 5);
+            const px = Math.cos(angle) * r;
+            const py = Math.sin(angle) * r;
+            if(i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath(); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(-e.size/2, 0); ctx.lineTo(0, e.size/3); ctx.lineTo(e.size/2, -e.size/4);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    drawPixelSprite(type, x, y, size, color) {
+        const map = PIXEL_MAPS[type]; if(!map) return;
+        ctx.fillStyle = color;
+        const sw = map[0].length * size; const sh = map.length * size;
+        map.forEach((row, r) => {
+            row.forEach((pixel, c) => { if (pixel) ctx.fillRect(x - sw/2 + c*size, y - sh/2 + r*size, size, size); });
+        });
+    }
+
+    die() {
+        this.isActive = false; this.isFiring = false;
+        document.getElementById('death-title').innerText = "TERMINATED";
+        document.getElementById('death-title').style.color = "var(--neon-red)";
+        document.getElementById('death-msg').innerText = `Squad lost in Sector ${this.rank}.`;
+        document.getElementById('retry-btn').innerText = "Deploy Again";
+        document.getElementById('death-overlay').style.display = 'flex';
+        document.getElementById('ui-layer').style.display = 'none';
+        this.saveData();
+    }
+
+    win() {
+        this.isActive = false; this.isFiring = false;
+        const prev = this.rank; this.rank++; this.saveData();
+        document.getElementById('death-title').innerText = "SECTOR CLEAR";
+        document.getElementById('death-title').style.color = "var(--neon-green)";
+        document.getElementById('death-msg').innerText = `Sector ${prev} secured. Proceeding to Sector ${this.rank}.`;
+        document.getElementById('retry-btn').innerText = `Launch Sector ${this.rank}`;
+        document.getElementById('death-overlay').style.display = 'flex';
+        document.getElementById('ui-layer').style.display = 'none';
+        this.updateUI();
+    }
+
+    saveData() {
+        localStorage.setItem('neon_road_save', JSON.stringify(this.upgrades));
+        localStorage.setItem('neon_road_coins', this.totalCoins);
+        localStorage.setItem('neon_road_rank', this.rank);
     }
 
     openShop() {
         const container = document.getElementById('shop-items');
         container.innerHTML = '';
-        const items = [
-            { id: 'squadCap', name: 'Reinforcements', cost: 500 },
-            { id: 'fireRate', name: 'Rapid Fire', cost: 400 },
-            { id: 'damage', name: 'Heavy Bolts', cost: 600 }
-        ];
-        items.forEach(item => {
-            const level = this.upgrades[item.id];
-            const cost = Math.floor(item.cost * Math.pow(1.6, level));
-            const btn = document.createElement('button');
-            btn.className = 'btn';
-            btn.style.width = '100%';
-            btn.innerHTML = `${item.name} (Lvl ${level})<br><small>${cost} Coins</small>`;
-            btn.onclick = () => {
-                if (this.totalCoins >= cost) {
-                    this.totalCoins -= cost;
-                    this.upgrades[item.id]++;
-                    this.saveData();
-                    this.openShop();
-                    this.updateUI();
-                }
-            };
-            container.appendChild(btn);
+        const items = [{id:'squad', n:'Squad Cap'}, {id:'dmg', n:'Ammo Power'}, {id:'spd', n:'Fire Rate'}];
+        items.forEach(it => {
+            const cost = Math.floor(1000 * Math.pow(1.5, this.upgrades[it.id]));
+            const b = document.createElement('button');
+            b.className = 'btn';
+            b.innerHTML = `${it.n} Lvl ${this.upgrades[it.id]}<br>${cost} Credits`;
+            b.disabled = this.totalCoins < cost;
+            b.onclick = () => { if(this.totalCoins >= cost) { this.totalCoins -= cost; this.upgrades[it.id]++; this.saveData(); this.openShop(); this.updateUI(); } };
+            container.appendChild(b);
         });
-        this.toggleOverlay('shop-overlay', true);
+        document.getElementById('menu-overlay').style.display = 'none';
+        document.getElementById('shop-overlay').style.display = 'flex';
+    }
+
+    closeShop() { document.getElementById('shop-overlay').style.display = 'none'; document.getElementById('menu-overlay').style.display = 'flex'; }
+    goToMenu() { document.getElementById('death-overlay').style.display = 'none'; document.getElementById('menu-overlay').style.display = 'flex'; }
+    
+    loop() { 
+        this.update(); 
+        this.draw(); 
+        requestAnimationFrame(() => this.loop()); 
     }
 }
 
-const game = new Game();
+let game;
+window.onload = () => { game = new Game(); };
 </script>
 </body>
 </html>
