@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Road Shooter</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#151820" />
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      background: #111;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      font-family: Arial, sans-serif;
+      color: #fff;
+      touch-action: none;
+      overflow: hidden;
+    }
+    canvas {
+      border: 4px solid #444;
+      background: #202530;
+      width: 100vw;
+      height: 100vh;
+      max-width: 480px;
+      max-height: 800px;
+    }
+    /* Simple button-style hit areas (drawn in canvas, but kept here for clarity if needed) */
+  </style>
+</head>
+<body>
+  <canvas id="game" width="400" height="700"></canvas>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+
+    const WIDTH = canvas.width;
+    const HEIGHT = canvas.height;
+
+    // Lane setup
+    const laneCount = 2;
+    const laneWidth = WIDTH / laneCount;
+    const laneX = [laneWidth * 0.25, laneWidth * 0.75]; // centers of lanes
+
+    // Game state
+    let gameState = "menu"; // "menu" | "playing" | "paused" | "dead" | "shop"
+    let lastTime = performance.now();
+    let elapsedTime = 0;
+    let coins = 0;
+    let totalCoins = 0;
+    let coinRatePerSecond = 30; // base; can be upgraded
+    let bossTimer = 0;
+    const bossInterval = 35; // seconds between bosses
+
+    // Economy / upgrades
+    const CONTINUE_COST = 400;
+
+    const defaultUpgrades = {
+      multiShotLevel: 0,
+      fireRateLevel: 0,
+      damageLevel: 0,
+      coinMultiplierLevel: 0
+    };
+
+    let upgrades = loadUpgrades();
+
+    // Upgrade-derived stats
+    function getMultiShotBase() {
+      return 1 + upgrades.multiShotLevel;
+    }
+    function getFireDelayBase() {
+      return 0.25 - upgrades.fireRateLevel * 0.03;
+    }
+    function getDamageBase() {
+      return 1 + upgrades.damageLevel * 0.5;
+    }
+    function getCoinMultiplier() {
+      return 1 + upgrades.coinMultiplierLevel * 0.25;
+    }
+
+    // Player
+    const player = {
+      laneIndex: 0,
+      targetLaneIndex: 0,
+      x: laneX[0],
+      y: HEIGHT - 90,
+      width: 50,
+      height: 60,
+      color: "#4af",
+      fireDelay: getFireDelayBase(),
+      fireCooldown: 0,
+      multiShot: getMultiShotBase(),
+      weaponLevel: 1,
+      damage: getDamageBase(),
+
+      laneAnimTime: 0,
+      laneAnimDuration: 0.15,
+      laneAnimFromX: laneX[0],
+      laneAnimToX: laneX[0]
+    };
+
+    // Bullets
+    const bullets = [];
+
+    // Enemies (monsters), bosses, obstacles
+    const enemies = [];
+    const obstacles = [];
+    let activeBoss = null;
+
+    // Spawn control
+    let enemySpawnTimer = 0;
+    let obstacleSpawnTimer = 0;
+
+    // Input
+    const keys = {};
+
+    // Virtual joystick
+    const joystick = {
+      active: false,
+      startX: 0,
+      startY: 0,
+      currentX: 0,
+      currentY: 0,
+      radius: 50
+    };
+
+    // Pause button area (top right)
+    const pauseButton = {
+      x: WIDTH - 40,
+      y: 20,
+      r: 15
+    };
+
+    // Shop data
+    const shopItems = [
+      {
+        key: "multiShotLevel",
+        name: "Extra Shot",
+        description: "Fire one more bullet per shot.",
+        baseCost: 500
+      },
+      {
+        key: "fireRateLevel",
+        name: "Faster Fire",
+        description: "Reduce time between shots.",
+        baseCost: 400
+      },
+      {
+        key: "damageLevel",
+        name: "Stronger Bullets",
+        description: "Bullets deal more damage.",
+        baseCost: 600
+      },
+      {
+        key: "coinMultiplierLevel",
+        name: "Coin Booster",
+        description: "Earn more coins.",
+        baseCost: 700
+      }
+    ];
+    const maxLevelPerUpgrade = 5;
+
+    // Utilities: upgrades persistence
+    function loadUpgrades() {
+      try {
+        const raw = localStorage.getItem("rs_upgrades");
+        if (!raw) return { ...defaultUpgrades };
+        const parsed = JSON.parse(raw);
+        return { ...defaultUpgrades, ...parsed };
+      } catch {
+        return { ...defaultUpgrades };
+      }
+    }
+
+    function saveUpgrades() {
+      localStorage.setItem("rs_upgrades", JSON.stringify(upgrades));
+    }
+
+    // Input handlers
+    window.addEventListener("keydown", (e) => {
+      keys[e.key] = true;
+
+      if (gameState === "dead" && e.key === "Enter") {
+        tryContinue();
+      }
+
+      if (gameState === "playing") {
+        if (e.key === "Escape") togglePause();
+      }
+
+      if (gameState === "menu" && e.key === "Enter") {
+        startRun(true);
+      }
+    });
+
+    window.addEventListener("keyup", (e) => {
+      keys[e.key] = false;
+    });
+
+    // Touch for joystick and menu interactions
+    canvas.addEventListener("touchstart", (e) => {
+      const t = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const x = (t.clientX - rect.left) * (WIDTH / rect.width);
+      const y = (t.clientY - rect.top) * (HEIGHT / rect.height);
+
+      if (gameState === "menu") {
+        // Simple button regions
+        if (y > HEIGHT / 2 && y < HEIGHT / 2 + 60) {
+          // Start button area
+          startRun(false);
+          return;
+        }
+        if (y > HEIGHT / 2 + 80 && y < HEIGHT / 2 + 140) {
+          // Shop button area
+          gameState = "shop";
+          return;
+        }
+      } else if (gameState === "shop") {
+        handleShopTouch(x, y);
+        return;
+      } else if (gameState === "dead") {
+        // Tap lower middle to open shop or retry
+        if (y > HEIGHT / 2 + 50 && y < HEIGHT / 2 + 100) {
+          gameState = "shop";
+          return;
+        }
+        // Tap center region to try continue
+        if (y > HEIGHT / 2 && y < HEIGHT / 2 + 40) {
+          tryContinue();
+          return;
+        }
+      }
+
+      if (gameState === "playing" || gameState === "paused") {
+        // Check pause button tap
+        const dx = x - pauseButton.x;
+        const dy = y - pauseButton.y;
+        if (Math.sqrt(dx * dx + dy * dy) <= pauseButton.r) {
+          togglePause();
+          return;
+        }
+      }
+
+      // Joystick activation (only in playing)
+      if (gameState === "playing") {
+        joystick.active = true;
+        joystick.startX = x;
+        joystick.startY = y;
+        joystick.currentX = x;
+        joystick.currentY = y;
+      }
+    });
+
+    canvas.addEventListener("touchmove", (e) => {
+      if (!joystick.active || gameState !== "playing") return;
+      const t = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const x = (t.clientX - rect.left) * (WIDTH / rect.width);
+      const y = (t.clientY - rect.top) * (HEIGHT / rect.height);
+
+      joystick.currentX = x;
+      joystick.currentY = y;
+
+      const dx = joystick.currentX - joystick.startX;
+
+      if (dx > 20) {
+        setPlayerLane(1);
+      } else if (dx < -20) {
+        setPlayerLane(0);
+      }
+    });
+
+    canvas.addEventListener("touchend", () => {
+      joystick.active = false;
+    });
+
+    // Shop touch handling
+    function handleShopTouch(x, y) {
+      // Simple vertical list, each item row approx 80px tall starting at middle
+      const startY = HEIGHT / 2 - 40;
+      for (let i = 0; i < shopItems.length; i++) {
+        const rowY = startY + i * 70;
+        if (y > rowY - 30 && y < rowY + 30) {
+          attemptPurchase(shopItems[i]);
+          return;
+        }
+      }
+
+      // Back button at bottom
+      if (y > HEIGHT - 70) {
+        // back to menu or dead depending on previous
+        gameState = "menu";
+      }
+    }
+
+    function attemptPurchase(item) {
+      const level = upgrades[item.key] || 0;
+      if (level >= maxLevelPerUpgrade) return;
+
+      const cost = getUpgradeCost(item, level);
+      if (coins >= cost) {
+        coins -= cost;
+        upgrades[item.key] = level + 1;
+        saveUpgrades();
+        applyUpgradesToPlayer();
+        if (navigator.vibrate) navigator.vibrate(80);
+      }
+    }
+
+    function getUpgradeCost(item, level) {
+      // simple scaling: base * (level+1)
+      return item.baseCost * (level + 1);
+    }
+
+    function applyUpgradesToPlayer() {
+      player.multiShot = getMultiShotBase();
+      player.fireDelay = Math.max(0.12, getFireDelayBase());
+      player.damage = getDamageBase();
+      coinRatePerSecond = 30 * getCoinMultiplier();
+    }
+
+    // Lane switching with animation
+    function setPlayerLane(newLane) {
+      if (newLane === player.targetLaneIndex) return;
+      player.laneAnimFromX = player.x;
+      player.laneAnimToX = laneX[newLane];
+      player.laneAnimTime = 0;
+      player.targetLaneIndex = newLane;
+    }
+
+    function updateLaneAnimation(dt) {
+      if (player.laneAnimTime < player.laneAnimDuration) {
+        player.laneAnimTime += dt;
+        const t = Math.min(1, player.laneAnimTime / player.laneAnimDuration);
+        // Ease function (smoothstep)
+        const eased = t * t * (3 - 2 * t);
+        player.x =
+          player.laneAnimFromX +
+          (player.laneAnimToX - player.laneAnimFromX) * eased;
+      } else {
+        player.laneIndex = player.targetLaneIndex;
+        player.x = laneX[player.laneIndex];
+      }
+    }
+
+    function startRun(fullReset) {
+      resetGame(fullReset);
+      gameState = "playing";
+    }
+
+    function resetGame(fullReset = false) {
+      gameState = "playing";
+      elapsedTime = 0;
+      bossTimer = 0;
+      enemies.length = 0;
+      obstacles.length = 0;
+      bullets.length = 0;
+      activeBoss = null;
+      enemySpawnTimer = 0;
+      obstacleSpawnTimer = 1;
+      player.laneIndex = 0;
+      player.targetLaneIndex = 0;
+      player.x = laneX[0];
+      player.y = HEIGHT - 90;
+      player.fireCooldown = 0;
+      player.weaponLevel = 1;
+      applyUpgradesToPlayer();
+
+      if (fullReset) {
+        coins = 0;
+        totalCoins = 0;
+      }
+    }
+
+    function tryContinue() {
+      if (coins >= CONTINUE_COST) {
+        coins -= CONTINUE_COST;
+        if (navigator.vibrate) navigator.vibrate(120);
+        startRun(false);
+      }
+    }
+
+    function togglePause() {
+      if (gameState === "playing") {
+        gameState = "paused";
+      } else if (gameState === "paused") {
+        gameState = "playing";
+      }
+    }
+
+    // Spawning
+    function spawnEnemy() {
+      if (activeBoss) return; // no regular enemies during boss
+      const power = Math.random();
+      let color = "#f44";
+      let speed = 100;
+      let health = 1.5;
+
+      if (power > 0.7) {
+        color = "#ff3fff";
+        speed = 160;
+        health = 3;
+      } else if (power > 0.4) {
+        color = "#3fffbf";
+        speed = 130;
+        health = 2;
+      }
+
+      enemies.push({
+        type: "monster",
+        laneIndex: Math.floor(Math.random() * laneCount),
+        y: -60,
+        width: 50,
+        height: 50,
+        speed: speed,
+        color: color,
+        health: health,
+        maxHealth: health,
+        elite: power > 0.8
+      });
+    }
+
+    function spawnObstacle() {
+      const obstacleTypes = [
+        { color: "#ffbf00", reward: "multiShot" }, // barrel
+        { color: "#00bfff", reward: "weaponUp" },  // energy barrier
+        { color: "#ff006e", reward: "coins" }      // crate
+      ];
+      const choice = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+
+      obstacles.push({
+        laneIndex: Math.floor(Math.random() * laneCount),
+        y: -60,
+        width: 50,
+        height: 40,
+        speed: 120,
+        color: choice.color,
+        reward: choice.reward,
+        health: 2
+      });
+    }
+
+    function spawnBoss() {
+      activeBoss = {
+        type: "boss",
+        x: WIDTH / 2,
+        y: 120,
+        width: 220,
+        height: 120,
+        color: "#ff5555",
+        health: 80,
+        maxHealth: 80,
+        phase: 1,
+        timer: 0
+      };
+      if (navigator.vibrate) navigator.vibrate([80, 80, 80]);
+    }
+
+    // Shooting
+    function fireBullet() {
+      if (player.fireCooldown > 0 || gameState !== "playing") return;
+
+      const baseX = player.x;
+      const y = player.y - player.height / 2;
+      const spread = 18;
+      const shots = player.multiShot;
+
+      for (let i = 0; i < shots; i++) {
+        const offset = (i - (shots - 1) / 2) * spread;
+        bullets.push({
+          x: baseX + offset,
+          y: y,
+          radius: 6 + player.weaponLevel * 1,
+          speed: 360 + player.weaponLevel * 50,
+          color: ["#4af", "#6ff", "#f6f"][player.weaponLevel - 1] || "#fff",
+          damage: player.damage
+        });
+      }
+
+      player.fireCooldown = player.fireDelay;
+    }
+
+    function handleShooting(dt) {
+      player.fireCooldown = Math.max(0, player.fireCooldown - dt);
+
+      // Auto-fire
+      fireBullet();
+    }
+
+    // Collision helpers
+    function rectsCollide(a, b) {
+      return (
+        Math.abs(a.x - b.x) * 2 < (a.width + b.width) &&
+        Math.abs(a.y - b.y) * 2 < (a.height + b.height)
+      );
+    }
+
+    function circleRectCollide(circle, rect) {
+      const rx = rect.x - rect.width / 2;
+      const ry = rect.y - rect.height / 2;
+      const closestX = Math.max(rx, Math.min(circle.x, rx + rect.width));
+      const closestY = Math.max(ry, Math.min(circle.y, ry + rect.height));
+      const dx = circle.x - closestX;
+      const dy = circle.y - closestY;
+      return dx * dx + dy * dy < circle.radius * circle.radius;
+    }
+
+    // Boss update
+    function updateBoss(dt) {
+      if (!activeBoss) return;
+
+      activeBoss.timer += dt;
+
+      // Simple bobbing motion
+      activeBoss.y = 120 + Math.sin(activeBoss.timer * 2) * 10;
+
+      // You could add boss attacks here (projectiles, etc.)
+    }
+
+    // Rewards from obstacles
+    function applyObstacleReward(o) {
+      if (o.reward === "multiShot") {
+        player.multiShot = Math.min(player.multiShot + 1, 6);
+      } else if (o.reward === "weaponUp") {
+        player.weaponLevel = Math.min(player.weaponLevel + 1, 3);
+        player.fireDelay = Math.max(0.12, player.fireDelay - 0.03);
+      } else if (o.reward === "coins") {
+        coins += 150;
+      }
+      if (navigator.vibrate) navigator.vibrate(60);
+    }
+
+    function gameOver() {
+      gameState = "dead";
+      if (navigator.vibrate) navigator.vibrate(200);
+    }
+
+    function update(dt) {
+      if (gameState !== "playing") return;
+
+      elapsedTime += dt;
+      bossTimer += dt;
+
+      const earned = coinRatePerSecond * dt;
+      coins += earned;
+      totalCoins += earned;
+
+      enemySpawnTimer -= dt;
+      obstacleSpawnTimer -= dt;
+
+      if (!activeBoss && bossTimer >= bossInterval) {
+        spawnBoss();
+        bossTimer = 0;
+      }
+
+      if (enemySpawnTimer <= 0) {
+        spawnEnemy();
+        enemySpawnTimer = 0.7 + Math.random() * 0.7;
+      }
+
+      if (obstacleSpawnTimer <= 0) {
+        spawnObstacle();
+        obstacleSpawnTimer = 1.5 + Math.random() * 1.2;
+      }
+
+      handleShooting(dt);
+      updateLaneAnimation(dt);
+      updateBoss(dt);
+
+      bullets.forEach((b) => {
+        b.y -= b.speed * dt;
+      });
+
+      enemies.forEach((e) => {
+        e.y += e.speed * dt;
+      });
+
+      obstacles.forEach((o) => {
+        o.y += o.speed * dt;
+      });
+
+      // Remove off-screen bullets
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        if (bullets[i].y < -20) bullets.splice(i, 1);
+      }
+
+      // Bullet vs enemies/obstacles/boss
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        let hit = false;
+
+        // Enemies
+        for (let j = enemies.length - 1; j >= 0 && !hit; j--) {
+          const e = enemies[j];
+          const rect = {
+            x: laneX[e.laneIndex],
+            y: e.y,
+            width: e.width,
+            height: e.height
+          };
+          if (circleRectCollide(b, rect)) {
+            e.health -= b.damage;
+            hit = true;
+            if (e.health <= 0) {
+              const reward = (e.elite ? 60 : 25) * getCoinMultiplier();
+              coins += reward;
+              if (e.elite && navigator.vibrate) navigator.vibrate([40, 40, 40]);
+              enemies.splice(j, 1);
+            }
+          }
+        }
+
+        // Obstacles
+        if (!hit) {
+          for (let j = obstacles.length - 1; j >= 0 && !hit; j--) {
+            const o = obstacles[j];
+            const rect = {
+              x: laneX[o.laneIndex],
+              y: o.y,
+              width: o.width,
+              height: o.height
+            };
+            if (circleRectCollide(b, rect)) {
+              o.health -= b.damage;
+              hit = true;
+              if (o.health <= 0) {
+                applyObstacleReward(o);
+                obstacles.splice(j, 1);
+              }
+            }
+          }
+        }
+
+        // Boss
+        if (!hit && activeBoss) {
+          const rect = {
+            x: activeBoss.x,
+            y: activeBoss.y,
+            width: activeBoss.width,
+            height: activeBoss.height
+          };
+          if (circleRectCollide(b, rect)) {
+            activeBoss.health -= b.damage;
+            hit = true;
+            if (activeBoss.health <= 0) {
+              // Boss defeated: big coin reward
+              coins += 400 * getCoinMultiplier();
+              if (navigator.vibrate) navigator.vibrate([80, 80, 80, 80]);
+              activeBoss = null;
+              bossTimer = 0;
+            }
+          }
+        }
+
+        if (hit) bullets.splice(i, 1);
+      }
+
+      // Player collisions
+      const playerRect = {
+        x: player.x,
+        y: player.y,
+        width: player.width,
+        height: player.height
+      };
+
+      // Enemies
+      for (const e of enemies) {
+        const enemyRect = {
+          x: laneX[e.laneIndex],
+          y: e.y,
+          width: e.width,
+          height: e.height
+        };
+        if (rectsCollide(playerRect, enemyRect)) {
+          gameOver();
+          return;
+        }
+      }
+
+      // Obstacles
+      for (const o of obstacles) {
+        const obstRect = {
+          x: laneX[o.laneIndex],
+          y: o.y,
+          width: o.width,
+          height: o.height
+        };
+        if (rectsCollide(playerRect, obstRect)) {
+          gameOver();
+          return;
+        }
+      }
+
+      // Boss collision (body)
+      if (activeBoss) {
+        const bossRect = {
+          x: activeBoss.x,
+          y: activeBoss.y,
+          width: activeBoss.width,
+          height: activeBoss.height
+        };
+        if (rectsCollide(playerRect, bossRect)) {
+          gameOver();
+          return;
+        }
+      }
+
+      // Clean up off-screen
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        if (enemies[i].y > HEIGHT + 60) enemies.splice(i, 1);
+      }
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        if (obstacles[i].y > HEIGHT + 60) obstacles.splice(i, 1);
+      }
+    }
+
+    // Drawing
+    function drawRoad() {
+      ctx.fillStyle = "#151820";
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+      for (let i = 1; i < laneCount; i++) {
+        ctx.strokeStyle = "#444";
+        ctx.setLineDash([15, 15]);
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(i * laneWidth, 0);
+        ctx.lineTo(i * laneWidth, HEIGHT);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+
+    function drawPlayer() {
+      const x = player.x;
+      const y = player.y;
+
+      const gradient = ctx.createLinearGradient(
+        x - player.width / 2,
+        y - player.height / 2,
+        x + player.width / 2,
+        y + player.height / 2
+      );
+      gradient.addColorStop(0, "#4af");
+      gradient.addColorStop(1, "#9ff");
+
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.roundRect(
+        x - player.width / 2,
+        y - player.height / 2,
+        player.width,
+        player.height,
+        10
+      );
+      ctx.fill();
+
+      // Cannon
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(x - 5, y - player.height / 2 - 15, 10, 20);
+    }
+
+    function drawBullets() {
+      bullets.forEach((b) => {
+        const gradient = ctx.createRadialGradient(
+          b.x,
+          b.y,
+          1,
+          b.x,
+          b.y,
+          b.radius
+        );
+        gradient.addColorStop(0, "#fff");
+        gradient.addColorStop(1, b.color);
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function drawEnemies() {
+      enemies.forEach((e) => {
+        const x = laneX[e.laneIndex];
+        const y = e.y;
+
+        ctx.fillStyle = e.color;
+        ctx.beginPath();
+        ctx.roundRect(
+          x - e.width / 2,
+          y - e.height / 2,
+          e.width,
+          e.height,
+          12
+        );
+        ctx.fill();
+
+        // Eyes
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.arc(x - 10, y - 5, 6, 0, Math.PI * 2);
+        ctx.arc(x + 10, y - 5, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#000";
+        ctx.beginPath();
+        ctx.arc(x - 10, y - 5, 3, 0, Math.PI * 2);
+        ctx.arc(x + 10, y - 5, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Mouth
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x, y + 10, 10, 0, Math.PI);
+        ctx.stroke();
+
+        if (e.elite) {
+          ctx.strokeStyle = "#ff0";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.roundRect(
+            x - e.width / 2 - 4,
+            y - e.height / 2 - 4,
+            e.width + 8,
+            e.height + 8,
+            14
+          );
+          ctx.stroke();
+        }
+      });
+    }
+
+    function drawObstacles() {
+      obstacles.forEach((o) => {
+        const x = laneX[o.laneIndex];
+        const y = o.y;
+
+        ctx.fillStyle = o.color;
+        ctx.beginPath();
+        ctx.roundRect(
+          x - o.width / 2,
+          y - o.height / 2,
+          o.width,
+          o.height,
+          8
+        );
+        ctx.fill();
+
+        ctx.fillStyle = "#000";
+        ctx.font = "16px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        let symbol = "";
+        if (o.reward === "multiShot") symbol = "+S";
+        else if (o.reward === "weaponUp") symbol = "UP";
+        else if (o.reward === "coins") symbol = "$$";
+        ctx.fillText(symbol, x, y);
+      });
+    }
+
+    function drawBoss() {
+      if (!activeBoss) return;
+      const b = activeBoss;
+
+      ctx.fillStyle = b.color;
+      ctx.beginPath();
+      ctx.roundRect(
+        b.x - b.width / 2,
+        b.y - b.height / 2,
+        b.width,
+        b.height,
+        30
+      );
+      ctx.fill();
+
+      // Eyes
+      const x = b.x;
+      const y = b.y;
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(x - 40, y - 20, 10, 0, Math.PI * 2);
+      ctx.arc(x + 40, y - 20, 10, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#000";
+      ctx.beginPath();
+      ctx.arc(x - 40, y - 20, 5, 0, Math.PI * 2);
+      ctx.arc(x + 40, y - 20, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Big mouth
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(x, y + 20, 40, 0, Math.PI);
+      ctx.stroke();
+
+      // Aura
+      ctx.strokeStyle = "#ffcc00";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.roundRect(
+        b.x - b.width / 2 - 6,
+        b.y - b.height / 2 - 6,
+        b.width + 12,
+        b.height + 12,
+        34
+      );
+      ctx.stroke();
+
+      // Boss HP bar
+      const barWidth = WIDTH * 0.7;
+      const barHeight = 12;
+      const hpRatio = b.health / b.maxHealth;
+      const barX = (WIDTH - barWidth) / 2;
+      const barY = 30;
+
+      ctx.fillStyle = "#333";
+      ctx.fillRect(barX, barY, barWidth, barHeight);
+      ctx.fillStyle = "#ff4444";
+      ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
+
+      ctx.strokeStyle = "#fff";
+      ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+      ctx.fillStyle = "#fff";
+      ctx.font = "12px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText("BOSS", WIDTH / 2, barY - 2);
+    }
+
+    function drawUI() {
+      ctx.fillStyle = "#fff";
+      ctx.font = "16px Arial";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+
+      ctx.fillText(`Time: ${elapsedTime.toFixed(1)}s`, 10, 10);
+      ctx.fillText(`Coins: ${Math.floor(coins)}`, 10, 30);
+      ctx.fillText(
+        `Weapon L${player.weaponLevel} | Shots: ${player.multiShot}`,
+        10,
+        50
+      );
+
+      ctx.textAlign = "right";
+      ctx.fillText(`Continue: ${CONTINUE_COST}`, WIDTH - 10, 10);
+
+      // Pause button
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(pauseButton.x, pauseButton.y, pauseButton.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#000";
+      ctx.fillRect(pauseButton.x - 5, pauseButton.y - 8, 4, 16);
+      ctx.fillRect(pauseButton.x + 1, pauseButton.y - 8, 4, 16);
+    }
+
+    function drawJoystick() {
+      if (!joystick.active || gameState !== "playing") return;
+
+      ctx.globalAlpha = 0.4;
+
+      ctx.beginPath();
+      ctx.fillStyle = "#888";
+      ctx.arc(joystick.startX, joystick.startY, joystick.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.fillStyle = "#fff";
+      ctx.arc(joystick.currentX, joystick.currentY, joystick.radius * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.globalAlpha = 1;
+    }
+
+    function drawMenu() {
+      ctx.fillStyle = "#111";
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      ctx.font = "32px Arial";
+      ctx.fillText("Road Shooter", WIDTH / 2, HEIGHT / 2 - 120);
+
+      ctx.font = "16px Arial";
+      ctx.fillText("Drag joystick to move lanes", WIDTH / 2, HEIGHT / 2 - 80);
+      ctx.fillText("Auto-fire, dodge obstacles and monsters", WIDTH / 2, HEIGHT / 2 - 50);
+
+      // Start button
+      ctx.fillStyle = "#28a745";
+      ctx.beginPath();
+      ctx.roundRect(WIDTH / 2 - 80, HEIGHT / 2, 160, 40, 10);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.font = "18px Arial";
+      ctx.fillText("Start", WIDTH / 2, HEIGHT / 2 + 20);
+
+      // Shop button
+      ctx.fillStyle = "#007bff";
+      ctx.beginPath();
+      ctx.roundRect(WIDTH / 2 - 80, HEIGHT / 2 + 80, 160, 40, 10);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.fillText("Shop", WIDTH / 2, HEIGHT / 2 + 100);
+
+      ctx.font = "14px Arial";
+      ctx.fillText(
+        `Total Coins: ${Math.floor(totalCoins)}`,
+        WIDTH / 2,
+        HEIGHT - 40
+      );
+    }
+
+    function drawShop() {
+      ctx.fillStyle = "#111";
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      ctx.font = "26px Arial";
+      ctx.fillText("Shop", WIDTH / 2, 60);
+
+      ctx.font = "16px Arial";
+      ctx.fillText(`Coins: ${Math.floor(coins)}`, WIDTH / 2, 90);
+
+      const startY = HEIGHT / 2 - 40;
+      ctx.textAlign = "left";
+
+      shopItems.forEach((item, index) => {
+        const level = upgrades[item.key] || 0;
+        const cost = level >= maxLevelPerUpgrade ? "MAX" : getUpgradeCost(item, level);
+        const y = startY + index * 70;
+
+        ctx.fillStyle = "#222";
+        ctx.beginPath();
+        ctx.roundRect(30, y - 30, WIDTH - 60, 60, 10);
+        ctx.fill();
+
+        ctx.fillStyle = "#fff";
+        ctx.font = "16px Arial";
+        ctx.fillText(`${item.name} (Lv ${level}/${maxLevelPerUpgrade})`, 40, y - 10);
+        ctx.font = "12px Arial";
+        ctx.fillText(item.description, 40, y + 8);
+
+        ctx.textAlign = "right";
+        ctx.font = "14px Arial";
+        ctx.fillText(`Cost: ${cost}`, WIDTH - 40, y);
+        ctx.textAlign = "left";
+      });
+
+      // Back button
+      ctx.fillStyle = "#444";
+      ctx.beginPath();
+      ctx.roundRect(30, HEIGHT - 60, WIDTH - 60, 40, 10);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.font = "16px Arial";
+      ctx.fillText("Back", WIDTH / 2, HEIGHT - 40);
+    }
+
+    function drawPausedOverlay() {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      ctx.font = "28px Arial";
+      ctx.fillText("Paused", WIDTH / 2, HEIGHT / 2 - 20);
+
+      ctx.font = "16px Arial";
+      ctx.fillText("Tap pause icon to resume", WIDTH / 2, HEIGHT / 2 + 10);
+    }
+
+    function drawGameOver() {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      ctx.font = "32px Arial";
+      ctx.fillText("You Died!", WIDTH / 2, HEIGHT / 2 - 60);
+
+      ctx.font = "18px Arial";
+      ctx.fillText(
+        `Run Coins: ${Math.floor(coins)}`,
+        WIDTH / 2,
+        HEIGHT / 2 - 20
+      );
+      ctx.fillText(
+        `Total Coins: ${Math.floor(totalCoins)}`,
+        WIDTH / 2,
+        HEIGHT / 2 + 10
+      );
+
+      const canContinue = coins >= CONTINUE_COST;
+      ctx.font = "16px Arial";
+      if (canContinue) {
+        ctx.fillText(
+          `Tap here or press ENTER to continue (${CONTINUE_COST} coins)`,
+          WIDTH / 2,
+          HEIGHT / 2 + 50
+        );
+      } else {
+        ctx.fillText(
+          `Need ${CONTINUE_COST} coins to continue`,
+          WIDTH / 2,
+          HEIGHT / 2 + 50
+        );
+      }
+
+      ctx.fillText(
+        "Tap below to open Shop",
+        WIDTH / 2,
+        HEIGHT / 2 + 80
+      );
+    }
+
+    function draw() {
+      if (gameState === "menu") {
+        drawMenu();
+        return;
+      }
+
+      if (gameState === "shop") {
+        drawShop();
+        return;
+      }
+
+      drawRoad();
+      drawPlayer();
+      drawBullets();
+      drawEnemies();
+      drawObstacles();
+      drawBoss();
+      drawUI();
+      drawJoystick();
+
+      if (gameState === "paused") {
+        drawPausedOverlay();
+      }
+
+      if (gameState === "dead") {
+        drawGameOver();
+      }
+    }
+
+    function loop(timestamp) {
+      const dt = (timestamp - lastTime) / 1000;
+      lastTime = timestamp;
+
+      if (gameState === "playing") {
+        update(dt);
+      }
+
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    applyUpgradesToPlayer();
+    requestAnimationFrame(loop);
+
+    // PWA: register service worker
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("service-worker.js").catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
