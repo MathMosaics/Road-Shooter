@@ -3,556 +3,785 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Road: Legacy</title>
-    <link href="https://fonts.googleapis.com/css2?family=Monoton&display=swap" rel="stylesheet">
+    <title>Neon Road: Persistent Campaign</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
             --neon-blue: #00f2ff;
+            --neon-pink: #ff0077;
             --neon-purple: #bc13fe;
             --neon-red: #ff3131;
             --neon-yellow: #ffcc00;
             --neon-green: #39ff14;
+            --neon-orange: #ff8c00;
+            --neon-cyan: #00ffff;
         }
         body { 
-            margin: 0; background: #010103; color: #fff; 
-            font-family: 'Courier New', Courier, monospace; 
-            overflow: hidden; touch-action: none;
-            display: flex; justify-content: center; align-items: center; height: 100vh;
+            margin: 0; background: #050508; color: #fff; 
+            font-family: 'Orbitron', sans-serif; overflow: hidden; 
+            display: flex; justify-content: center; align-items: center; 
+            height: 100vh; touch-action: none;
         }
         #game-container {
-            position: relative; background: #000; width: 100%; height: 100%; max-width: 500px;
-            overflow: hidden; border: 2px solid #111;
+            position: relative; box-shadow: 0 0 60px rgba(0, 242, 255, 0.2);
+            background: #000; width: 100%; height: 100%;
+            max-width: 400px; max-height: 700px; border: 1px solid #1a1a1a;
+            display: flex; flex-direction: column;
         }
-        canvas { display: block; width: 100%; height: 100%; position: absolute; top:0; left:0; }
+        canvas { display: block; width: 100%; flex: 1; }
         
+        #control-deck {
+            height: 120px;
+            background: linear-gradient(to bottom, #111, #000);
+            border-top: 2px solid #222;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+        }
+        #control-deck::after {
+            content: "CONTROL DECK - SLIDE HERE";
+            font-size: 8px;
+            color: #444;
+            letter-spacing: 2px;
+        }
+        #deck-glow {
+            position: absolute;
+            top: 0; height: 2px; width: 60px;
+            background: var(--neon-blue);
+            box-shadow: 0 0 15px var(--neon-blue);
+            transition: left 0.1s ease-out;
+        }
+
         #ui-layer {
-            position: absolute; top: 0; left: 0; width: 100%; padding: 15px;
-            box-sizing: border-box; pointer-events: none; display: none;
-            justify-content: space-between; z-index: 50;
+            position: absolute; top: 0; left: 0; width: 100%;
+            padding: 15px; box-sizing: border-box; pointer-events: none;
+            display: flex; justify-content: space-between; z-index: 5;
         }
         .stat-box { 
-            background: rgba(0,0,0,0.85); padding: 5px 10px; 
-            border: 1px solid var(--neon-blue);
+            background: rgba(0,0,0,0.8); padding: 8px 12px; 
+            border-bottom: 2px solid var(--neon-blue); backdrop-filter: blur(8px);
+            min-width: 50px;
         }
-        .stat-label { font-size: 10px; color: var(--neon-blue); display: block; text-transform: uppercase; }
-        .stat-value { font-size: 16px; font-weight: bold; }
+        .stat-label { font-size: 7px; color: var(--neon-blue); display: block; text-transform: uppercase; letter-spacing: 1px; }
+        .stat-value { font-size: 11px; font-weight: 900; }
+        
+        #progression-container {
+            position: absolute; bottom: 130px; left: 50%; transform: translateX(-50%);
+            width: 80%; pointer-events: none;
+        }
+        .prog-bar-bg { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; position: relative; }
+        .prog-bar-fill { height: 100%; background: var(--neon-blue); width: 0%; transition: width 0.3s; box-shadow: 0 0 10px var(--neon-blue); }
 
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.4); display: none; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 100; padding: 20px;
-            box-sizing: border-box; text-align: center;
-        }
-
-        h2.neon-title { 
-            font-family: 'Monoton', cursive;
-            color: var(--neon-blue); 
-            font-size: 44px; 
-            margin-bottom: 30px; 
-            letter-spacing: 2px;
-            -webkit-text-stroke: 1px #fff;
-            text-shadow: 0 0 20px rgba(0, 242, 255, 0.8);
+            background: rgba(0,0,0,0.9); display: none; flex-direction: column;
+            justify-content: center; align-items: center; text-align: center;
+            z-index: 20; padding: 20px; box-sizing: border-box;
         }
         
+        #menu-overlay { display: flex; }
+        h2 { color: #fff; font-size: 42px; margin: 0; text-shadow: 0 0 20px var(--neon-blue); font-weight: 900; }
+        p { letter-spacing: 3px; font-weight: 700; color: var(--neon-blue); margin-top: 5px; font-size: 12px; }
+        
+        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; pointer-events: auto; }
         .btn {
-            padding: 15px 30px; font-size: 14px; cursor: pointer;
-            border: 2px solid var(--neon-blue); background: rgba(0,0,0,0.9);
-            color: var(--neon-blue); margin: 8px; text-transform: uppercase;
-            width: 260px; pointer-events: auto; z-index: 101;
-            transition: all 0.2s;
-            box-shadow: 0 0 10px rgba(0, 242, 255, 0.2);
+            padding: 18px 28px; font-size: 14px; font-family: 'Orbitron', sans-serif;
+            font-weight: 900; cursor: pointer; border: 2px solid var(--neon-blue);
+            background: #000; color: var(--neon-blue); width: 280px; text-transform: uppercase;
         }
-        .btn:hover { background: var(--neon-blue); color: #000; box-shadow: 0 0 20px var(--neon-blue); }
+        .btn:hover:not(:disabled) { background: var(--neon-blue); color: #000; }
+        .btn:disabled { border-color: #444; color: #444; cursor: not-allowed; }
 
-        #weapon-timer-ui {
-            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.8); border: 1px solid var(--neon-purple);
-            padding: 5px 15px; font-size: 12px; color: var(--neon-purple);
-            display: none; z-index: 55; border-radius: 20px;
+        #boss-ui {
+            position: absolute; top: 70px; left: 50%; transform: translateX(-50%);
+            width: 85%; display: none; z-index: 10;
+            background: rgba(255, 49, 49, 0.05);
+            padding: 10px;
+            border-left: 2px solid var(--neon-red);
+            border-right: 2px solid var(--neon-red);
         }
-        #rank-tag { font-size: 10px; color: var(--neon-yellow); display: block; margin-top: 2px; }
+        .boss-bar-bg { 
+            width: 100%; height: 6px; background: rgba(0,0,0,0.8); 
+            border: 1px solid rgba(255, 49, 49, 0.3);
+            position: relative; overflow: hidden;
+        }
+        .boss-bar-fill { height: 100%; background: var(--neon-red); width: 100%; transition: width 0.1s; position: relative; }
+        
+        .boss-name { color: var(--neon-red); font-size: 9px; text-transform: uppercase; margin-bottom: 6px; display: block; text-align: center; font-weight: 900; letter-spacing: 2px; }
     </style>
 </head>
 <body>
 
 <div id="game-container">
-    <canvas id="gameCanvas"></canvas>
-
     <div id="ui-layer">
-        <div class="stat-box">
-            <span class="stat-label">Credits</span>
-            <span id="coin-display" class="stat-value">0</span>
+        <div style="display: flex; gap: 5px;">
+            <div class="stat-box">
+                <span class="stat-label">SQUAD</span>
+                <span id="squad-display" class="stat-value">1</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">SECTOR</span>
+                <span id="sector-display" class="stat-value" style="color: var(--neon-purple)">1</span>
+            </div>
         </div>
-        <div class="stat-box" style="border-color: var(--neon-green);">
-            <span class="stat-label" style="color: var(--neon-green);">Objective</span>
-            <span id="objective-count" class="stat-value">100</span>
-            <span id="rank-tag">SECTOR 1</span>
-        </div>
-        <div class="stat-box">
-            <span class="stat-label">Squad</span>
-            <span id="squad-display" class="stat-value">1</span>
+        <div class="stat-box" style="text-align: right;">
+            <span class="stat-label">CREDITS</span>
+            <span id="credit-display" class="stat-value" style="color: var(--neon-green)">0</span>
         </div>
     </div>
 
-    <div id="weapon-timer-ui">OVERCLOCK: 10.0s</div>
-
-    <div id="menu-overlay" class="overlay" style="display: flex;">
-        <h2 class="neon-title">NEON ROAD</h2>
-        <button class="btn" onclick="game.start(true)">Launch Mission</button>
-        <button class="btn" onclick="game.openShop()">Black Market</button>
+    <div id="progression-container">
+        <div class="prog-bar-bg"><div id="prog-fill" class="prog-bar-fill"></div></div>
     </div>
 
-    <div id="shop-overlay" class="overlay">
-        <h2 class="neon-title" style="font-size: 32px;">DEPOT</h2>
-        <div id="shop-items" style="margin-bottom: 20px;"></div>
-        <button class="btn" onclick="game.closeShop()">Return to Base</button>
+    <div id="boss-ui">
+        <span id="boss-title" class="boss-name">BOSS SIGNATURE DETECTED</span>
+        <div class="boss-bar-bg"><div id="boss-fill" class="boss-bar-fill"></div></div>
+    </div>
+
+    <div id="menu-overlay" class="overlay">
+        <h2>NEON ROAD</h2>
+        <p>RECON UNIT ALPHA // DEEP SPACE</p>
+        <div class="btn-group">
+            <button class="btn" onclick="game.startCampaign()">New Run</button>
+            <button class="btn" style="border-color: var(--neon-purple); color: var(--neon-purple);" onclick="game.openMarket()">Black Market</button>
+        </div>
+    </div>
+
+    <div id="market-overlay" class="overlay">
+        <h2 style="font-size: 24px;">BLACK MARKET</h2>
+        <p>TOTAL CREDITS: <span id="market-credits">0</span></p>
+        <div class="btn-group" id="market-items"></div>
+        <button class="btn" onclick="game.closeMarket()" style="margin-top: 15px;">Back</button>
     </div>
 
     <div id="death-overlay" class="overlay">
-        <h2 id="death-title" class="neon-title" style="color: var(--neon-red);">TERMINATED</h2>
-        <p id="death-msg" style="margin-bottom: 20px; color: #888;"></p>
-        <button class="btn" id="retry-btn" onclick="game.start(true)">Deploy Again</button>
-        <button class="btn" onclick="game.goToMenu()">Back to Menu</button>
+        <h2 id="death-title" style="color: var(--neon-red)">SQUAD LOST</h2>
+        <p id="death-stats">SECTOR 1 REACHED</p>
+        <div class="btn-group">
+            <button id="continue-btn" class="btn" style="border-color: var(--neon-green); color: var(--neon-green);" onclick="game.buyContinue()">Buy Continue</button>
+            <button class="btn" onclick="game.startCampaign()">Restart Run</button>
+            <button class="btn" onclick="game.showMenu()">Menu</button>
+        </div>
     </div>
+
+    <div id="victory-overlay" class="overlay">
+        <h2 style="color: var(--neon-green)">SECTOR CLEAR</h2>
+        <p>SQUAD PRESERVED</p>
+        <div class="btn-group">
+            <button class="btn" onclick="game.nextSector()">Advance to Next Sector</button>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="control-deck"><div id="deck-glow"></div></div>
 </div>
 
 <script>
-const PIXEL_MAPS = {
-    phantom: [[0,0,1,1,1,1,0,0],[0,1,1,1,1,1,1,0],[1,1,0,1,1,0,1,1],[1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1],[1,0,1,0,0,1,0,1],[1,0,1,0,0,1,0,1]],
-    stalker: [[0,0,0,1,1,0,0,0],[0,0,1,1,1,1,0,0],[0,1,1,1,1,1,1,0],[1,1,0,1,1,0,1,1],[1,1,1,1,1,1,1,1],[0,1,0,1,1,0,1,0],[1,0,1,0,0,1,0,1]],
-    glitch: [[1,0,1,0,1,0,1,0],[0,1,0,1,0,1,0,1],[1,1,1,1,1,1,1,1],[1,0,0,1,1,0,0,1],[1,1,1,1,1,1,1,1],[0,1,1,0,0,1,1,0],[1,0,0,1,1,0,0,1]],
-    goliath: [[0,0,1,1,1,1,0,0],[0,1,1,1,1,1,1,0],[1,1,0,1,1,0,1,1],[1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1],[0,1,0,1,1,0,1,0],[1,0,0,0,0,0,0,1]],
-    shielder: [[0,1,1,1,1,1,1,0],[1,1,1,1,1,1,1,1],[1,1,0,0,0,0,1,1],[1,1,0,1,1,0,1,1],[1,1,0,1,1,0,1,1],[1,1,0,0,0,0,1,1],[1,1,1,1,1,1,1,1],[0,1,1,1,1,1,1,0]]
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d', { alpha: false });
+const deck = document.getElementById('control-deck');
+const glow = document.getElementById('deck-glow');
+
+const GAME_WIDTH = 400;
+const GAME_HEIGHT = 580; 
+const NORMAL_CAP = 15;
+const BOSS_CAP = 40; 
+const TECH_DURATION_FRAMES = 600;
+const EMP_DURATION_FRAMES = 180; // 3 seconds
+
+canvas.width = GAME_WIDTH;
+canvas.height = GAME_HEIGHT;
+
+const MONSTER_SHAPES = [
+    { pixels: ["  X     X  ", "   X   X   ", "  XXXXXXX  ", " XX XXX XX ", "XXXXXXXXXXX", "X XXXXXXX X", "X X     X X"], baseHp: 15 },
+    { pixels: ["  XXXX   ", " XXXXXX  ", "XXXXXXXX ", "XX XX XX ", "XXXXXXXX ", "  X  X   ", " X XX X  "], baseHp: 8 },
+    { pixels: ["   XX    ", "  XXXX   ", " XXXXXX  ", "XX XX XX ", "XXXXXXXX ", " XX  XX  ", "X  XX  X "], baseHp: 3 },
+    { pixels: ["  XXXXXX  ", " XXXXXXXX ", "XXXXXXXXXX", "XX XXXX XX", "XXXXXXXXXX", "  XX  XX  "], baseHp: 40 }, 
+    { pixels: [ 
+        "      XXXXXX      ",
+        "    XXXXXXXXXX    ",
+        "  XXXXXXXXXXXXXX  ",
+        " XXXX  XXXX  XXXX ",
+        "XXXXXXXXXXXXXXXXXX",
+        "XXXXXXXXXXXXXXXXXX",
+        " XX  XX XX XX  XX ",
+        " XX  XX    XX  XX ",
+        "  X  X      X  X  "
+    ], baseHp: 1500 }
+];
+
+const BOSS_QUOTES = {
+    INTRO: ["PREPARE FOR OBLIVION!", "SQUAD DETECTED. PURGE COMMENCING.", "YOU HAVE GONE FAR ENOUGH!", "I AM THE END OF YOUR ROAD."],
+    PURGE: ["ALL MINOR LIFEFORMS: TERMINATE.", "MY FIELD. MY RULES.", "CLEANING UP THE TRASH.", "LEAVE US."],
+    PAIN: ["OUCH!", "GRAAAH!", "MY PLATING!", "YOU'LL PAY FOR THAT!"],
+    DEFEAT: ["THIS IS... IMPOSSIBLE...", "I WILL... RETURN...", "SYSTEM... OFFLINE..."],
+    ELITE: ["ELITE INTERCEPTOR ACTIVE", "YOU SHALL NOT PASS", "PROTOCOL: TERMINATE"]
 };
 
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-let width, height;
+const MOB_COLORS = ['#bc13fe', '#ff0077', '#ff8c00', '#00f2ff'];
 
-function resize() {
-    width = canvas.width = document.getElementById('game-container').clientWidth;
-    height = canvas.height = document.getElementById('game-container').clientHeight;
-}
-window.addEventListener('resize', resize);
-resize();
+const TECH_TYPES = {
+    PULSE: { id: 'PULSE', color: '#00f2ff', label: 'PLASMA PULSE' }, // Point defense weapon
+    BURST: { id: 'BURST', color: '#ff0077', label: 'VOID BURST' },
+    RAPID: { id: 'RAPID', color: '#ffcc00', label: 'CHRONO RAPID' },
+    EMP: { id: 'EMP', color: '#bc13fe', label: 'EMP SINGULARITY' }
+};
 
 class Game {
     constructor() {
-        this.loadData();
-        this.reset(true);
-        this.setupBackdrops();
-        this.setupInput();
-        this.shakeX = 0;
-        this.shakeY = 0;
+        this.totalCredits = 0;
+        this.upgrades = { hull: 0, speed: 0, mercs: 0 };
+        this.currentSector = 1;
+        this.persistentSquadSize = 1;
+        this.livingMercCount = 0; 
+        this.reset();
+        this.stars = Array.from({length: 40}, () => ({ x: Math.random() * GAME_WIDTH, y: Math.random() * GAME_HEIGHT, v: 0.5 + Math.random() * 2 }));
+        this.setupListeners();
         this.loop();
     }
 
-    loadData() {
-        const saved = localStorage.getItem('neon_road_save');
-        this.upgrades = saved ? JSON.parse(saved) : { squad: 0, dmg: 0, spd: 0 };
-        this.totalCoins = parseInt(localStorage.getItem('neon_road_coins')) || 0;
-        this.rank = parseInt(localStorage.getItem('neon_road_rank')) || 1;
-    }
-
-    reset(full) {
+    reset() {
         this.isActive = false;
-        this.isFiring = false;
         this.frame = 0;
+        this.kills = 0;
+        this.targetKills = 40 + (this.currentSector * 20); 
+        this.squadSize = this.persistentSquadSize; 
+        this.activeTech = null;
+        this.techTimer = 0;
+        this.empTimer = 0;
+        this.creditsThisRun = 0;
+        this.currentX = 200;
+        this.targetX = 200;
         this.entities = [];
         this.bullets = [];
-        this.playerX = width / 2;
-        this.targetX = width / 2;
-        this.weaponTimer = 0;
-        this.weaponType = 'std';
-        
-        if (full) {
-            this.squadCount = 1 + this.upgrades.squad;
-            this.monstersToKill = 100 + (this.rank - 1) * 25;
+        this.enemyBullets = [];
+        this.particles = [];
+        this.floatingTexts = [];
+        this.isFiring = false;
+        this.bossActive = false;
+        this.eliteActive = false;
+        this.sectorBoss = null;
+        this.amoebaUnits = [];
+        this.purgePulseRadius = 0;
+        this.bossEmpDrops = 0; 
+        this.rebuildAmoeba(); 
+        document.getElementById('boss-ui').style.display = 'none';
+        document.getElementById('prog-fill').style.width = '0%';
+    }
+
+    rebuildAmoeba() {
+        const cap = (this.bossActive || this.eliteActive) ? BOSS_CAP : NORMAL_CAP;
+        const currentCapCount = Math.floor(Math.min(cap, this.squadSize));
+        const currentMercsInField = this.amoebaUnits.filter(u => u.isMerc).length;
+        const currentStandardInField = this.amoebaUnits.filter(u => !u.isMerc).length;
+
+        if (currentStandardInField < currentCapCount) {
+            for (let i = 0; i < currentCapCount - currentStandardInField; i++) this.amoebaUnits.push(this.createUnit(false));
+        }
+        if (currentMercsInField < this.livingMercCount) {
+            for (let i = 0; i < this.livingMercCount - currentMercsInField; i++) this.amoebaUnits.push(this.createUnit(true));
         }
     }
 
-    setupBackdrops() {
-        this.stars = Array.from({length: 150}, () => ({
-            x: Math.random() * width, y: Math.random() * height,
-            s: Math.random() * 2, v: 0.05 + Math.random() * 0.2,
-            a: 0.1 + Math.random() * 0.4
-        }));
-        
-        this.roads = Array.from({length: 3}, (_, i) => ({
-            offset: i * 400,
-            color: i === 0 ? 'rgba(0, 242, 255, 0.5)' : i === 1 ? 'rgba(188, 19, 254, 0.4)' : 'rgba(57, 255, 20, 0.3)',
-            width: 55 + i * 35
-        }));
-
-        this.ghosts = Array.from({length: 5}, () => ({
-            x: Math.random() * width, y: Math.random() * height,
-            v: 0.2 + Math.random() * 0.4, 
-            type: Object.keys(PIXEL_MAPS)[Math.floor(Math.random()*5)],
-            color: ['#00f2ff', '#bc13fe', '#39ff14'][Math.floor(Math.random()*3)]
-        }));
-    }
-
-    setupInput() {
-        const move = (e) => {
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const rect = canvas.getBoundingClientRect();
-            this.targetX = (clientX - rect.left) * (width / rect.width);
+    createUnit(isMerc) {
+        return { 
+            angle: Math.random() * Math.PI * 2, 
+            baseDist: 20 + Math.random() * 20, 
+            phase: Math.random() * Math.PI * 2, 
+            rotSpeed: 0.01 + Math.random() * 0.015, 
+            x: 0, y: 0, hp: 1 + this.upgrades.hull, isMerc: isMerc 
         };
-        const down = (e) => { if (!this.isActive) return; this.isFiring = true; move(e); };
-        const up = () => { this.isFiring = false; };
-        canvas.addEventListener('mousemove', move);
-        canvas.addEventListener('mousedown', down);
-        window.addEventListener('mouseup', up);
-        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); down(e); }, {passive: false});
-        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); move(e); }, {passive: false});
-        canvas.addEventListener('touchend', up);
     }
 
-    start(full) {
-        this.reset(full);
-        this.isActive = true;
-        document.getElementById('menu-overlay').style.display = 'none';
-        document.getElementById('death-overlay').style.display = 'none';
-        document.getElementById('shop-overlay').style.display = 'none';
-        document.getElementById('ui-layer').style.display = 'flex';
-        this.updateUI();
+    setupListeners() {
+        const handleInput = (clientX) => {
+            const rect = deck.getBoundingClientRect();
+            let x = (clientX - rect.left) * (GAME_WIDTH / rect.width);
+            this.targetX = Math.max(20, Math.min(GAME_WIDTH - 20, x));
+            glow.style.left = (this.targetX - 30) + "px";
+        };
+        const onStart = (e) => { if(!this.isActive) return; this.isFiring = true; handleInput(e.touches ? e.touches[0].clientX : e.clientX); };
+        const onMove = (e) => { if(!this.isActive) return; handleInput(e.touches ? e.touches[0].clientX : e.clientX); };
+        deck.addEventListener('mousedown', onStart);
+        window.addEventListener('mousemove', (e) => { if(this.isFiring) onMove(e); });
+        window.addEventListener('mouseup', () => this.isFiring = false);
+        deck.addEventListener('touchstart', (e) => { e.preventDefault(); onStart(e); }, {passive:false});
+        deck.addEventListener('touchmove', (e) => { e.preventDefault(); onMove(e); }, {passive:false});
+        deck.addEventListener('touchend', () => this.isFiring = false);
     }
 
-    updateUI() {
-        document.getElementById('coin-display').innerText = Math.floor(this.totalCoins);
-        document.getElementById('objective-count').innerText = Math.max(0, this.monstersToKill);
-        document.getElementById('squad-display').innerText = Math.floor(this.squadCount);
-        document.getElementById('rank-tag').innerText = `SECTOR ${this.rank}`;
+    startCampaign() { this.currentSector = 1; this.persistentSquadSize = 1; this.livingMercCount = this.upgrades.mercs; this.start(); }
+    buyContinue() {
+        const cost = 1500 + (this.currentSector * 200);
+        if (this.totalCredits >= cost) { this.totalCredits -= cost; this.persistentSquadSize = Math.max(1, Math.floor(this.persistentSquadSize / 2)); this.start(); }
+    }
+    nextSector() { this.currentSector++; this.persistentSquadSize = this.squadSize; this.start(); }
+    start() { this.reset(); this.isActive = true; document.querySelectorAll('.overlay').forEach(o => o.style.display = 'none'); document.getElementById('sector-display').innerText = this.currentSector; }
+    showMenu() { document.querySelectorAll('.overlay').forEach(o => o.style.display = 'none'); document.getElementById('menu-overlay').style.display = 'flex'; this.isActive = false; }
+    openMarket() { document.getElementById('menu-overlay').style.display = 'none'; document.getElementById('market-overlay').style.display = 'flex'; this.renderMarket(); }
+    closeMarket() { document.getElementById('market-overlay').style.display = 'none'; document.getElementById('menu-overlay').style.display = 'flex'; }
+
+    renderMarket() {
+        const credits = Math.floor(this.totalCredits);
+        document.getElementById('market-credits').innerText = credits;
+        const container = document.getElementById('market-items');
+        const items = [
+            { id: 'hull', label: `Upgrade Hull (Lvl ${this.upgrades.hull})`, cost: 500, desc: "+1 HP to every ship" },
+            { id: 'speed', label: `Overclock Cores (Lvl ${this.upgrades.speed})`, cost: 750, desc: "Faster Fire Rate" },
+            { id: 'mercs', label: `Mercenary Ship (${this.upgrades.mercs}/5)`, cost: 2500 + (this.upgrades.mercs * 1500), desc: "Respawn only at start of New Run", max: 5 }
+        ];
+        container.innerHTML = items.map(item => {
+            const isMaxed = item.max !== undefined && this.upgrades[item.id] >= item.max;
+            const canAfford = credits >= item.cost;
+            return `<div style="margin-bottom: 8px;"><button class="btn" ${(!canAfford || isMaxed) ? 'disabled' : ''} onclick="game.buyUpgrade('${item.id}', ${item.cost})">${isMaxed ? 'MAXED OUT' : `${item.label} - ${item.cost} CR`}</button><div style="font-size: 8px; color: #888; margin-top: 2px;">${item.desc}</div></div>`;
+        }).join('');
+    }
+
+    buyUpgrade(type, cost) { if (this.totalCredits >= cost) { this.totalCredits -= cost; this.upgrades[type]++; this.renderMarket(); } }
+
+    damageSquad(amount = 1) {
+        if (this.amoebaUnits.length === 0) return;
+        const idx = Math.floor(Math.random() * this.amoebaUnits.length);
+        const unit = this.amoebaUnits[idx];
+        unit.hp -= amount;
+        if (unit.hp <= 0) {
+            this.createExplosion(unit.x, unit.y, unit.isMerc ? '#bc13fe' : '#fff', 12);
+            if (unit.isMerc) this.livingMercCount = Math.max(0, this.livingMercCount - 1);
+            else this.squadSize = Math.max(0, this.squadSize - 1);
+            this.amoebaUnits.splice(idx, 1);
+            if (this.amoebaUnits.length === 0) this.gameOver();
+        }
+    }
+
+    triggerPurgePulse(boss) {
+        this.purgePulseRadius = 1;
+        this.addFloatingText(boss.x, boss.y + 100, BOSS_QUOTES.PURGE[Math.floor(Math.random()*BOSS_QUOTES.PURGE.length)], '#ff3131', true);
+        
+        this.entities.forEach(e => {
+            if (e.type === 'mob' || e.type === 'barrier') {
+                setTimeout(() => {
+                    this.createExplosion(e.x, e.y, e.color || '#ff3131', 15);
+                    e.hp = 0; e.y = 999;
+                }, 200 + Math.random() * 400);
+            }
+        });
+    }
+
+    spawnMiniBoss() {
+        this.eliteActive = true;
+        document.getElementById('boss-ui').style.display = 'block';
+        document.getElementById('boss-title').innerText = "ELITE INTERCEPTOR";
+        const bossData = MONSTER_SHAPES[3];
+        this.sectorBoss = {
+            type: 'elite', x: 200, y: -50, hp: bossData.baseHp * (2.5 + this.currentSector), 
+            maxHp: bossData.baseHp * (2.5 + this.currentSector), color: '#ffcc00',
+            movePhase: 0, fireTimer: 0, hitFlash: 0, shapeIdx: 3, introSaid: false
+        };
+        this.entities.push(this.sectorBoss);
+    }
+
+    spawnBoss() {
+        this.bossActive = true;
+        this.bossEmpDrops = 0;
+        document.getElementById('boss-ui').style.display = 'block';
+        document.getElementById('boss-title').innerText = "SECTOR COMMANDER";
+        const bossData = MONSTER_SHAPES[4];
+        this.sectorBoss = {
+            type: 'boss', x: 200, y: -250, hp: bossData.baseHp * (1 + this.currentSector * 1.5), 
+            maxHp: bossData.baseHp * (1 + this.currentSector * 1.5), color: '#ff3131',
+            movePhase: 0, fireTimer: 0, hitFlash: 0, shapeIdx: 4, introSaid: false
+        };
+        this.entities.push(this.sectorBoss);
+        this.triggerPurgePulse(this.sectorBoss);
+    }
+
+    createExplosion(x, y, color, count = 10) {
+        for(let i=0; i<count; i++) this.particles.push({ x, y, vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8, life: 1.0, color });
+    }
+
+    addFloatingText(x, y, text, color, isBossCallout = false) {
+        let finalX = x, finalY = y, rotation = 0;
+        if (isBossCallout) {
+            const isLeft = Math.random() > 0.5;
+            finalX = isLeft ? x - 120 : x + 120;
+            finalY = y + (Math.random() * 100 - 50);
+            rotation = (Math.random() * 0.4) - 0.2;
+            finalX = Math.max(60, Math.min(GAME_WIDTH - 60, finalX));
+        }
+        this.floatingTexts.push({ x: finalX, y: finalY, text, color, life: 1.0, isCallout: isBossCallout, scale: isBossCallout ? 1.4 : 1.0, rotation: rotation });
     }
 
     spawn() {
-        if (!this.isActive) return;
-        const x = 50 + Math.random() * (width - 100);
-        const r = Math.random();
+        const prog = this.kills / this.targetKills;
+        const rand = Math.random();
 
-        // Asteroids starting Sector 2
-        if (this.rank >= 2 && Math.random() < 0.05 + (this.rank * 0.01)) {
-            this.entities.push({
-                type: 'asteroid', x, y: -100, v: 1.2, 
-                hp: 150 * (1 + this.rank * 0.25), 
-                size: 25 + Math.random() * 20, 
-                rot: Math.random() * Math.PI * 2,
-                rotV: (Math.random() - 0.5) * 0.02,
-                flash: 0
-            });
+        if (this.frame % 180 === 0) {
+            let techToDrop = null;
+            if (this.bossActive && this.sectorBoss) {
+                const bossHpPct = this.sectorBoss.hp / this.sectorBoss.maxHp;
+                if ((this.bossEmpDrops === 0 && bossHpPct < 0.7) || 
+                    (this.bossEmpDrops === 1 && bossHpPct < 0.3)) {
+                    techToDrop = TECH_TYPES.EMP;
+                    this.bossEmpDrops++;
+                }
+            }
+            if (!techToDrop) {
+                const types = Object.values(TECH_TYPES);
+                const weights = [1, 1, 1, 0.2]; 
+                let total = weights.reduce((a,b) => a+b, 0);
+                let r = Math.random() * total;
+                let sum = 0;
+                for(let i=0; i<types.length; i++) {
+                    sum += weights[i];
+                    if (r <= sum) { techToDrop = types[i]; break; }
+                }
+            }
+            this.entities.push({ type: 'tech', x: Math.random() * 300 + 50, y: -50, tech: techToDrop });
+        }
+
+        if (this.frame % 100 === 0) {
+             this.entities.push({ type: 'credit', x: Math.random() * 340 + 30, y: -50, value: 50 + (this.currentSector * 25) });
+        }
+
+        if (!this.eliteActive && !this.bossActive) {
+            if ((prog >= 0.25 && prog < 0.27) || (prog >= 0.5 && prog < 0.52) || (prog >= 0.75 && prog < 0.77)) {
+                this.spawnMiniBoss();
+                return;
+            }
+            if (prog >= 1.0) {
+                this.spawnBoss();
+                return;
+            }
+        }
+
+        if (this.bossActive || this.eliteActive) {
+            if (rand > 0.90) { 
+                const w = 120;
+                const targetVal = Math.floor(Math.random() * 3) + 1;
+                this.entities.push({ 
+                    type: 'barrier', x: Math.random() * (GAME_WIDTH - w) + w/2, y: -50, width: w, isPositive: true, 
+                    targetSquad: targetVal, currentFill: 0, hp: targetVal * 15, maxHp: targetVal * 15
+                });
+            }
             return;
         }
 
-        if (r < 0.08) { 
-            this.entities.push({ type: 'tech', x, y: -50, v: 2, hp: 10, flash: 0 });
-        } else if (r < 0.22) { 
-            const isSquad = Math.random() > 0.5;
-            const good = Math.random() > 0.45;
-            const amt = Math.floor(Math.random() * (5 + this.rank)) + 3;
+        if (rand > 0.85) {
+            const isPos = Math.random() > 0.4;
+            const w = isPos ? 120 : 180;
+            const targetVal = Math.floor(Math.random() * 5) + 1;
             this.entities.push({ 
-                type: 'gate', x, y: -50, v: 1.8 + (this.rank * 0.05), good, amt, 
-                currentProgress: good ? 0 : amt, totalCapacity: amt, hp: 50, flash: 0, isSquad 
+                type: 'barrier', x: Math.random() * (GAME_WIDTH - w) + w/2, y: -50, width: w, isPositive: isPos, 
+                targetSquad: targetVal, currentFill: isPos ? 0 : (targetVal * 15), hp: targetVal * 15, maxHp: targetVal * 15
             });
-        } else { 
-            const roll = Math.random();
-            let type = 'phantom', color = '#00f2ff', hp = 10, size = 4;
-            if (roll > 0.92) { type = 'goliath'; color = '#ff3131'; hp = 60; size = 7; }
-            else if (roll > 0.8) { type = 'shielder'; color = '#ffcc00'; hp = 40; size = 5; }
-            else if (roll > 0.5) { type = 'stalker'; color = '#39ff14'; hp = 20; size = 4; }
-            else { type = 'glitch'; color = '#bc13fe'; hp = 15; size = 4; }
-            this.entities.push({ 
-                type: 'mon', model: type, x, y: -50, v: 1.5 + Math.random() * 1.5 + (this.rank * 0.1), 
-                hp: hp * (1 + this.rank * 0.15), color, size, flash: 0 
-            });
+        } else if (rand > 0.50) {
+            const shapeIdx = Math.floor(Math.random() * 4);
+            const monsterData = MONSTER_SHAPES[shapeIdx];
+            const danger = 1 + (this.currentSector * 0.2);
+            this.entities.push({ type: 'mob', x: Math.random() * 340 + 30, y: -50, hp: monsterData.baseHp * danger, maxHp: monsterData.baseHp * danger, color: MOB_COLORS[Math.floor(Math.random()*4)], shapeIdx: shapeIdx, hitFlash: 0 });
         }
     }
 
     update() {
-        this.frame++;
-        this.stars.forEach(s => { s.y = (s.y + s.v) % height; });
-        this.ghosts.forEach(g => { g.y = (g.y + g.v) % height; });
-
-        this.shakeX = 0;
-        this.shakeY = 0;
-
         if (!this.isActive) return;
-
-        this.playerX += (this.targetX - this.playerX) * 0.15;
-        if (this.frame % 40 === 0) this.spawn();
-
-        if (this.weaponTimer > 0) {
-            this.weaponTimer--;
-            document.getElementById('weapon-timer-ui').style.display = 'block';
-            document.getElementById('weapon-timer-ui').innerText = `${this.weaponType.toUpperCase()} MODE: ${(this.weaponTimer/60).toFixed(1)}s`;
-            if (this.weaponTimer <= 0) {
-                this.weaponType = 'std';
-                document.getElementById('weapon-timer-ui').style.display = 'none';
-            }
-        }
-
-        const rate = 15 * (1 - this.upgrades.spd * 0.08);
-        if (this.isFiring && this.frame % Math.max(1, Math.floor(rate)) === 0) this.fire();
-
-        for (let i = this.entities.length - 1; i >= 0; i--) {
-            const e = this.entities[i];
-            e.y += e.v;
-            if (e.flash > 0) e.flash--;
-
-            if (e.type === 'asteroid') {
-                e.rot += e.rotV;
-                const dToPlayer = Math.abs(e.y - (height - 100));
-                if (dToPlayer < 400 && e.y < height) {
-                    const intensity = (1 - (dToPlayer / 400)) * 4;
-                    this.shakeX = (Math.random() - 0.5) * intensity;
-                    this.shakeY = (Math.random() - 0.5) * intensity;
-                }
-            }
-
-            const dist = Math.hypot(e.x - this.playerX, e.y - (height - 100));
-            if (dist < (e.type === 'asteroid' ? e.size + 20 : 50)) {
-                if (e.type === 'tech') {
-                    this.weaponType = ['burst', 'pulse', 'plasma'][Math.floor(Math.random()*3)];
-                    this.weaponTimer = 600; this.entities.splice(i, 1);
-                } else if (e.type === 'gate') {
-                    const delta = Math.floor(e.currentProgress);
-                    if (e.good) this.squadCount += delta;
-                    else this.squadCount = Math.max(0, this.squadCount - delta);
-                    this.updateUI(); this.entities.splice(i, 1);
-                    if (this.squadCount < 1) this.die();
-                } else if (e.type === 'mon' || e.type === 'asteroid') {
-                    this.squadCount -= (e.type === 'asteroid' ? 5 : 1); 
-                    this.updateUI(); this.entities.splice(i, 1);
-                    if (this.squadCount < 1) this.die();
-                }
-            }
-            if ((e.type === 'mon' || e.type === 'asteroid') && e.hp <= 0) {
-                if (e.type === 'mon') this.monstersToKill--;
-                this.totalCoins += (e.type === 'asteroid' ? 50 : 15); 
-                this.updateUI();
-                if (this.monstersToKill <= 0) { this.win(); return; }
-                this.entities.splice(i, 1);
-            } else if (e.y > height + 120) { this.entities.splice(i, 1); }
-        }
-
-        for (let i = this.bullets.length - 1; i >= 0; i--) {
-            const b = this.bullets[i]; b.y -= 14; let hit = false;
-            for (let e of this.entities) {
-                if (e.type === 'tech') continue;
-                const hitBox = e.type === 'gate' ? 45 : (e.type === 'asteroid' ? e.size : (e.size ? e.size * 8 : 20));
-                if (Math.hypot(b.x - e.x, b.y - e.y) < hitBox) {
-                    if (e.type === 'gate') {
-                        if (e.good) e.currentProgress = Math.min(e.totalCapacity, e.currentProgress + (b.dmg / 25));
-                        else e.currentProgress = Math.max(0, e.currentProgress - (b.dmg / 25));
-                    } else e.hp -= b.dmg;
-                    e.flash = 3; hit = true; break;
-                }
-            }
-            if (hit || b.y < -30) this.bullets.splice(i, 1);
-        }
-    }
-
-    fire() {
-        const count = Math.floor(this.squadCount);
-        const dmg = 6 + (this.upgrades.dmg * 5);
-        for (let i = 0; i < count; i++) {
-            const pos = this.getAmoebaPos(i, count);
-            if (this.weaponType === 'burst') {
-                this.bullets.push({x: pos.x - 8, y: pos.y, dmg});
-                this.bullets.push({x: pos.x + 8, y: pos.y, dmg});
-            } else if (this.weaponType === 'pulse') {
-                this.bullets.push({x: pos.x, y: pos.y, dmg: dmg * 1.5});
-            } else {
-                this.bullets.push({x: pos.x, y: pos.y, dmg: this.weaponType === 'plasma' ? dmg * 3.5 : dmg});
-            }
-        }
-    }
-
-    getAmoebaPos(i, total) {
-        if (i === 0) return { x: this.playerX, y: height - 100 };
-        const angle = (i / (total - 1)) * Math.PI * 2 + (this.frame * 0.02);
-        const pulse = Math.sin(this.frame * 0.05 + i) * 14;
-        const drift = Math.cos(this.frame * 0.03 + i) * 6;
-        const r = 48 + pulse;
-        return { x: this.playerX + Math.cos(angle) * r + drift, y: (height - 100) + Math.sin(angle) * (r * 0.65) };
-    }
-
-    draw() {
-        ctx.save();
-        ctx.translate(this.shakeX, this.shakeY);
-        ctx.fillStyle = '#010103';
-        ctx.fillRect(-10, -10, width + 20, height + 20);
-
-        this.drawSnakingRoads();
+        this.frame++;
         
-        if (this.isActive) {
-            this.drawGalaxy();
-            this.entities.forEach(e => {
-                if (e.type === 'mon') this.drawPixelSprite(e.model, e.x, e.y, e.size, e.flash ? '#fff' : e.color);
-                else if (e.type === 'asteroid') this.drawAsteroid(e);
-                else if (e.type === 'tech') {
-                    ctx.strokeStyle = '#bc13fe'; ctx.lineWidth = 2;
-                    ctx.strokeRect(e.x-25, e.y-15, 50, 30);
-                    ctx.fillStyle = '#fff'; ctx.font = '10px Courier';
-                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                    ctx.fillText('TECH', e.x, e.y);
-                } else if (e.type === 'gate') {
-                    const c = e.good ? '#00f2ff' : '#ff3131';
-                    ctx.strokeStyle = c; ctx.lineWidth = 3;
-                    ctx.strokeRect(e.x-45, e.y-30, 90, 60);
-                    ctx.fillStyle = c; ctx.globalAlpha = 0.2;
-                    const h = 60 * (e.currentProgress / e.totalCapacity);
-                    ctx.fillRect(e.x-45, e.y+30-h, 90, h);
-                    ctx.globalAlpha = 1;
-                    ctx.fillStyle = c; ctx.font = 'bold 16px Courier'; 
-                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                    const label = e.isSquad ? 'S' : 'D';
-                    const val = Math.floor(e.currentProgress);
-                    ctx.fillText(`${label} ${e.good?'+':'-'}${val}`, e.x, e.y);
-                }
+        if (this.frame % 30 === 0) this.spawn(); 
+
+        if (this.purgePulseRadius > 0) {
+            this.purgePulseRadius += 15;
+            if (this.purgePulseRadius > 800) this.purgePulseRadius = 0;
+        }
+
+        this.currentX += (this.targetX - this.currentX) * 0.15;
+        
+        if (this.techTimer > 0) { 
+            this.techTimer--; 
+            if (this.techTimer <= 0) this.activeTech = null; 
+        }
+        if (this.empTimer > 0) {
+            this.empTimer--;
+        }
+
+        this.rebuildAmoeba();
+
+        const playerY = GAME_HEIGHT - 80;
+        this.amoebaUnits.forEach(u => {
+            u.angle += u.rotSpeed; u.phase += 0.05;
+            const d = u.baseDist + Math.sin(u.phase) * 5;
+            u.x = this.currentX + Math.cos(u.angle) * d;
+            u.y = playerY + Math.sin(u.angle) * d * 0.7;
+        });
+
+        let rate = Math.max(3, 8 - this.upgrades.speed);
+        if (this.activeTech?.id === 'RAPID') rate = 2;
+        if (this.isFiring && this.frame % rate === 0) {
+            this.amoebaUnits.forEach(u => {
+                const bColor = this.activeTech ? this.activeTech.color : '#fff';
+                this.bullets.push({ 
+                    x: u.x, y: u.y - 10, vy: -12, vx: 0, color: bColor, 
+                    dmg: (this.activeTech?.id === 'PULSE' ? 4 : 1), 
+                    size: (this.activeTech?.id === 'PULSE' ? 6 : 2),
+                    isPlasma: (this.activeTech?.id === 'PULSE')
+                });
             });
+        }
+
+        // Bullet logic
+        this.bullets.forEach(b => { 
+            b.x += b.vx; b.y += b.vy; 
+            
+            // POINT DEFENSE: Plasma bolts (Pulse) zap enemy bullets
+            if (b.isPlasma) {
+                this.enemyBullets.forEach(eb => {
+                    if (Math.abs(b.x - eb.x) < 15 && Math.abs(b.y - eb.y) < 20) {
+                        this.createExplosion(eb.x, eb.y, '#00f2ff', 3);
+                        eb.y = 999; // Kill enemy bullet
+                    }
+                });
+            }
+        });
+        this.bullets = this.bullets.filter(b => b.y > -20);
+        
+        if (this.empTimer <= 0) {
+            this.enemyBullets.forEach(b => {
+                b.x += b.vx; b.y += b.vy;
+                this.amoebaUnits.forEach(u => { if (Math.abs(b.x - u.x) < 12 && Math.abs(b.y - u.y) < 12) { this.damageSquad(1); b.y = 999; } });
+            });
+        }
+        this.enemyBullets = this.enemyBullets.filter(b => b.y < GAME_HEIGHT + 20);
+
+        this.particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.life -= 0.02; });
+        this.particles = this.particles.filter(p => p.life > 0);
+        this.floatingTexts.forEach(t => { t.y -= (t.isCallout ? 0.2 : 1); t.life -= (t.isCallout ? 0.008 : 0.02); });
+        this.floatingTexts = this.floatingTexts.filter(t => t.life > 0);
+
+        this.entities.forEach(e => {
+            if (e.type === 'boss' || e.type === 'elite') {
+                const targetY = 160; 
+                if (e.y < targetY) {
+                    e.y += 1.5;
+                } else if (!e.introSaid) {
+                    e.introSaid = true;
+                    const qType = e.type === 'elite' ? BOSS_QUOTES.ELITE : BOSS_QUOTES.INTRO;
+                    this.addFloatingText(e.x, e.y, qType[Math.floor(Math.random()*qType.length)], e.color, true);
+                }
+
+                if (e.y >= targetY && this.empTimer <= 0) {
+                    const moveSpeed = e.type === 'elite' ? 0.01 : 0.02;
+                    e.movePhase += moveSpeed;
+                    e.x = 200 + Math.sin(e.movePhase) * 120;
+                    e.fireTimer++;
+                    if (e.fireTimer % (e.type === 'elite' ? 90 : 60) === 0) {
+                        for(let i=0; i<(e.type === 'elite' ? 4 : 8); i++) {
+                            const ang = (i * Math.PI * 2 / (e.type === 'elite' ? 4 : 8)) + (e.fireTimer * 0.1);
+                            this.enemyBullets.push({ x: e.x, y: e.y + 20, vx: Math.cos(ang) * 2, vy: 2 + Math.sin(ang) * 0.5 });
+                        }
+                    }
+                }
+                document.getElementById('boss-fill').style.width = (e.hp / e.maxHp * 100) + '%';
+            } else { 
+                if (this.empTimer <= 0) e.y += 3.5; 
+            }
 
             this.bullets.forEach(b => {
-                ctx.fillStyle = this.weaponType === 'plasma' ? '#bc13fe' : '#00f2ff';
-                ctx.fillRect(b.x-2, b.y, 4, 18);
+                const hw = e.type === 'barrier' ? e.width/2 : (e.type === 'boss' ? 80 : 30);
+                if (Math.abs(b.x - e.x) < hw && Math.abs(b.y - e.y) < 30) {
+                    if (e.type === 'boss' || e.type === 'elite' || e.type === 'mob') {
+                        e.hp -= b.dmg;
+                        if (e.type === 'boss' || e.type === 'elite') e.hitFlash = 2; 
+                        
+                        b.y = -99;
+                        if (e.hp <= 0) {
+                            if (e.type === 'boss') { 
+                                this.addFloatingText(e.x, e.y, BOSS_QUOTES.DEFEAT[0], '#fff', true); 
+                                this.victory(); 
+                            }
+                            else if (e.type === 'elite') { 
+                                this.eliteActive = false; 
+                                document.getElementById('boss-ui').style.display = 'none'; 
+                                e.y = 999; 
+                                this.kills += 5; 
+                            }
+                            else { 
+                                this.kills++; 
+                                e.y = 999; 
+                                this.creditsThisRun += 20; 
+                                this.createExplosion(e.x, e.y, e.color, 12); 
+                            }
+                        }
+                    } else if (e.type === 'barrier') {
+                        if (e.isPositive) e.currentFill = Math.min(e.maxHp, e.currentFill + 1);
+                        else e.currentFill = Math.max(0, e.currentFill - 1);
+                        b.y = -99;
+                    }
+                }
             });
 
-            const count = Math.floor(this.squadCount);
-            for (let i = 0; i < count; i++) {
-                const p = this.getAmoebaPos(i, count);
-                ctx.fillStyle = '#fff'; ctx.beginPath();
-                ctx.moveTo(p.x, p.y-10); ctx.lineTo(p.x+8, p.y+8); ctx.lineTo(p.x-8, p.y+8);
-                ctx.closePath(); ctx.fill();
-                ctx.fillStyle = 'rgba(0, 242, 255, 0.4)'; ctx.fillRect(p.x-2, p.y+8, 4, 6);
+            if (Math.abs(e.y - playerY) < 50) {
+                let collected = false;
+                this.amoebaUnits.forEach(u => { if (Math.abs(e.x - u.x) < 40) collected = true; });
+                if (collected) {
+                    if (e.type === 'tech') { 
+                        if (e.tech.id === 'EMP') {
+                            this.empTimer = EMP_DURATION_FRAMES;
+                            // EMP ALSO ZAPS ALL CURRENT ENEMY BULLETS ON ACTIVATION
+                            this.enemyBullets.forEach(eb => {
+                                this.createExplosion(eb.x, eb.y, '#bc13fe', 2);
+                            });
+                            this.enemyBullets = [];
+                            this.addFloatingText(e.x, e.y, "EMP SINGULARITY TRIGGERED", "#bc13fe");
+                        } else {
+                            this.activeTech = e.tech; 
+                            this.techTimer = TECH_DURATION_FRAMES; 
+                            this.addFloatingText(e.x, e.y, `${e.tech.label} RECHARGED`, e.tech.color);
+                        }
+                        e.y = 999; 
+                    }
+                    else if (e.type === 'credit') { this.creditsThisRun += e.value; e.y = 999; }
+                    else if (e.type === 'barrier') {
+                        const earned = Math.round((e.currentFill / e.maxHp) * e.targetSquad);
+                        if (e.isPositive) this.squadSize = Math.min(BOSS_CAP, this.squadSize + earned);
+                        else for(let i=0; i<earned; i++) this.damageSquad(1);
+                        e.y = 999;
+                    } else if (e.type === 'mob') { this.damageSquad(1); e.y = 999; }
+                }
             }
-        }
-        ctx.restore();
-    }
-
-    drawGalaxy() {
-        const grd = ctx.createRadialGradient(width/2, height/2, 50, width/2, height/2, height);
-        grd.addColorStop(0, 'rgba(188, 19, 254, 0.1)');
-        grd.addColorStop(1, 'transparent');
-        ctx.fillStyle = grd; ctx.fillRect(0,0,width,height);
-    }
-
-    drawSnakingRoads() {
-        this.stars.forEach(s => { ctx.fillStyle = '#fff'; ctx.globalAlpha = s.a; ctx.fillRect(s.x, s.y, s.s, s.s); });
-        ctx.globalAlpha = 1;
-
-        const roadAlphaMultiplier = this.isActive ? 0.25 : 1.0;
-        this.roads.forEach(road => {
-            ctx.beginPath();
-            ctx.strokeStyle = road.color.replace('0.', (parseFloat(road.color.match(/0\.\d+/)[0]) * roadAlphaMultiplier).toFixed(2));
-            ctx.lineWidth = road.width;
-            ctx.lineCap = 'round';
-            for(let y = -50; y < height + 50; y += 15) {
-                const freq = this.isActive ? 0.003 : 0.005;
-                const amp = this.isActive ? 80 : 150;
-                const x = width/2 + Math.sin((y + this.frame*3 + road.offset) * freq) * amp;
-                if (y === -50) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-            }
-            ctx.stroke();
         });
 
-        if (!this.isActive) {
-            this.ghosts.forEach(g => {
-                ctx.globalAlpha = 0.2;
-                const xShift = Math.sin(this.frame*0.015 + g.y)*60;
-                this.drawPixelSprite(g.type, g.x + xShift, g.y, 3, g.color);
-            });
-            ctx.globalAlpha = 1;
-        }
-    }
-
-    drawAsteroid(e) {
-        ctx.save();
-        ctx.translate(e.x, e.y);
-        ctx.rotate(e.rot);
-        ctx.strokeStyle = e.flash ? '#fff' : '#888';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        for(let i=0; i<8; i++) {
-            const angle = (i/8) * Math.PI * 2;
-            const r = e.size + (Math.sin(i * 1.5) * 5);
-            const px = Math.cos(angle) * r;
-            const py = Math.sin(angle) * r;
-            if(i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-        }
-        ctx.closePath(); ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(-e.size/2, 0); ctx.lineTo(0, e.size/3); ctx.lineTo(e.size/2, -e.size/4);
-        ctx.stroke();
-        ctx.restore();
-    }
-
-    drawPixelSprite(type, x, y, size, color) {
-        const map = PIXEL_MAPS[type]; if(!map) return;
-        ctx.fillStyle = color;
-        const sw = map[0].length * size; const sh = map.length * size;
-        map.forEach((row, r) => {
-            row.forEach((pixel, c) => { if (pixel) ctx.fillRect(x - sw/2 + c*size, y - sh/2 + r*size, size, size); });
-        });
-    }
-
-    die() {
-        this.isActive = false; this.isFiring = false;
-        document.getElementById('death-title').innerText = "TERMINATED";
-        document.getElementById('death-title').style.color = "var(--neon-red)";
-        document.getElementById('death-msg').innerText = `Squad lost in Sector ${this.rank}.`;
-        document.getElementById('retry-btn').innerText = "Deploy Again";
-        document.getElementById('death-overlay').style.display = 'flex';
-        document.getElementById('ui-layer').style.display = 'none';
-        this.saveData();
-    }
-
-    win() {
-        this.isActive = false; this.isFiring = false;
-        const prev = this.rank; this.rank++; this.saveData();
-        document.getElementById('death-title').innerText = "SECTOR CLEAR";
-        document.getElementById('death-title').style.color = "var(--neon-green)";
-        document.getElementById('death-msg').innerText = `Sector ${prev} secured. Proceeding to Sector ${this.rank}.`;
-        document.getElementById('retry-btn').innerText = `Launch Sector ${this.rank}`;
-        document.getElementById('death-overlay').style.display = 'flex';
-        document.getElementById('ui-layer').style.display = 'none';
+        this.entities = this.entities.filter(e => e.y < GAME_HEIGHT + 150 && e.hp > 0);
+        document.getElementById('prog-fill').style.width = (Math.min(1, this.kills / this.targetKills) * 100) + '%';
         this.updateUI();
     }
 
-    saveData() {
-        localStorage.setItem('neon_road_save', JSON.stringify(this.upgrades));
-        localStorage.setItem('neon_road_coins', this.totalCoins);
-        localStorage.setItem('neon_road_rank', this.rank);
+    updateUI() {
+        document.getElementById('squad-display').innerText = Math.floor(this.amoebaUnits.length);
+        document.getElementById('credit-display').innerText = Math.floor(this.creditsThisRun);
     }
 
-    openShop() {
-        const container = document.getElementById('shop-items');
-        container.innerHTML = '';
-        const items = [{id:'squad', n:'Squad Cap'}, {id:'dmg', n:'Ammo Power'}, {id:'spd', n:'Fire Rate'}];
-        items.forEach(it => {
-            const cost = Math.floor(1000 * Math.pow(1.5, this.upgrades[it.id]));
-            const b = document.createElement('button');
-            b.className = 'btn';
-            b.innerHTML = `${it.n} Lvl ${this.upgrades[it.id]}<br>${cost} Credits`;
-            b.disabled = this.totalCoins < cost;
-            b.onclick = () => { if(this.totalCoins >= cost) { this.totalCoins -= cost; this.upgrades[it.id]++; this.saveData(); this.openShop(); this.updateUI(); } };
-            container.appendChild(b);
+    gameOver() { this.isActive = false; this.totalCredits += this.creditsThisRun; document.getElementById('death-overlay').style.display = 'flex'; }
+    victory() { this.isActive = false; this.totalCredits += this.creditsThisRun + (1000 * this.currentSector); document.getElementById('victory-overlay').style.display = 'flex'; }
+
+    draw() {
+        ctx.fillStyle = '#050508'; 
+        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        
+        this.stars.forEach(s => { 
+            ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.2; 
+            ctx.fillRect(s.x, s.y, 2, 2); s.y += (this.empTimer > 0 ? s.v * 0.1 : s.v); if (s.y > GAME_HEIGHT) s.y = 0; 
         });
-        document.getElementById('menu-overlay').style.display = 'none';
-        document.getElementById('shop-overlay').style.display = 'flex';
+
+        if (this.empTimer > 0) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(188, 19, 254, 0.05)';
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            ctx.strokeStyle = '#bc13fe';
+            ctx.globalAlpha = Math.random() * 0.2;
+            ctx.lineWidth = 2;
+            for(let i=0; i<5; i++) {
+                let y = (this.frame * 2 + i * 120) % GAME_HEIGHT;
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(GAME_WIDTH, y); ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        if (this.purgePulseRadius > 0 && this.sectorBoss) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.strokeStyle = '#ff3131';
+            ctx.lineWidth = 4;
+            ctx.globalAlpha = 1 - (this.purgePulseRadius / 800);
+            ctx.arc(this.sectorBoss.x, this.sectorBoss.y, this.purgePulseRadius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+        
+        ctx.globalAlpha = 1.0;
+        this.particles.forEach(p => { ctx.fillStyle = p.color; ctx.globalAlpha = p.life; ctx.fillRect(p.x, p.y, 3, 3); });
+        
+        this.floatingTexts.forEach(t => {
+            ctx.save(); ctx.globalAlpha = t.life; ctx.translate(t.x, t.y);
+            if (t.isCallout) {
+                ctx.rotate(t.rotation); ctx.font = `900 ${18 * t.scale}px Orbitron`;
+                ctx.fillStyle = 'rgba(0,0,0,0.8)'; const textWidth = ctx.measureText(t.text).width; ctx.fillRect(-textWidth/2 - 10, -20, textWidth + 20, 30);
+                ctx.strokeStyle = t.color; ctx.lineWidth = 2; ctx.strokeRect(-textWidth/2 - 10, -20, textWidth + 20, 30);
+            } else { ctx.font = 'bold 12px Orbitron'; }
+            ctx.fillStyle = t.color; ctx.textAlign = 'center'; ctx.fillText(t.text, 0, 0); ctx.restore();
+        });
+
+        this.entities.forEach(e => {
+            ctx.save(); ctx.translate(e.x, e.y);
+            if (e.type === 'boss' || e.type === 'elite' || e.type === 'mob') {
+                const shapeData = MONSTER_SHAPES[e.shapeIdx];
+                const p = (e.type === 'boss' || e.type === 'elite') ? 8 : 4;
+                shapeData.pixels.forEach((row, r) => { [...row].forEach((char, c) => { 
+                    if (char === 'X') { 
+                        let color = e.color;
+                        if (this.empTimer > 0) color = '#555';
+                        if (e.hitFlash > 0 && (e.type === 'boss' || e.type === 'elite')) color = '#fff';
+                        ctx.fillStyle = color; 
+                        ctx.fillRect(c*p - (row.length*p/2), r*p - (shapeData.pixels.length*p/2), p-1, p-1); 
+                    }
+                }); });
+                if (e.hitFlash > 0) e.hitFlash--;
+
+                if (e.type === 'mob' || e.type === 'elite') {
+                    const bw = e.type === 'elite' ? 80 : 30;
+                    ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(-bw/2, 30, bw, 4);
+                    ctx.fillStyle = e.type === 'elite' ? '#ffcc00' : e.color;
+                    ctx.fillRect(-bw/2, 30, bw * (e.hp / e.maxHp), 4);
+                }
+            } else if (e.type === 'tech') { 
+                ctx.strokeStyle = e.tech.color; ctx.lineWidth = 2; ctx.strokeRect(-15, -15, 30, 30); 
+                ctx.fillStyle = e.tech.color; ctx.font = "bold 16px Orbitron"; ctx.textAlign="center"; ctx.fillText(e.tech.id[0], 0, 6); 
+                if (e.tech.id === 'EMP') {
+                   ctx.beginPath(); ctx.strokeStyle = '#fff'; ctx.globalAlpha = 0.5 + Math.sin(this.frame*0.1)*0.5;
+                   ctx.arc(0, 0, 20, 0, Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1;
+                }
+            }
+            else if (e.type === 'credit') { ctx.fillStyle = '#39ff14'; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI*2); ctx.fill(); }
+            else if (e.type === 'barrier') {
+                const color = e.isPositive ? '#39ff14' : '#ff3131'; ctx.strokeStyle = color; ctx.strokeRect(-e.width/2, -15, e.width, 30);
+                ctx.fillStyle = color; ctx.globalAlpha = 0.3; ctx.fillRect(-e.width/2, -15, e.width * (e.currentFill / e.maxHp), 30);
+                ctx.globalAlpha = 1; ctx.fillStyle = '#fff'; ctx.textAlign='center'; ctx.fillText(`${e.isPositive?'+':'-'}${Math.round((e.currentFill/e.maxHp)*e.targetSquad)}`, 0, 5);
+            }
+            ctx.restore();
+        });
+
+        this.amoebaUnits.forEach(u => {
+            ctx.save(); ctx.translate(u.x, u.y);
+            ctx.fillStyle = u.isMerc ? '#bc13fe' : (this.activeTech ? this.activeTech.color : '#00f2ff');
+            ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(8, 6); ctx.lineTo(0, 2); ctx.lineTo(-8, 6); ctx.closePath(); ctx.fill();
+            ctx.restore();
+        });
+
+        // DRAW BULLETS
+        this.bullets.forEach(b => { 
+            ctx.fillStyle = b.color; 
+            if (b.isPlasma) {
+                // Glow effect for plasma
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = b.color;
+                ctx.fillRect(b.x - b.size/2, b.y, b.size, 12);
+                ctx.shadowBlur = 0;
+            } else {
+                ctx.fillRect(b.x - b.size/2, b.y, b.size, 10); 
+            }
+        });
+
+        this.enemyBullets.forEach(b => { 
+            ctx.fillStyle = this.empTimer > 0 ? '#555' : '#ff3131'; 
+            ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill(); 
+        });
     }
 
-    closeShop() { document.getElementById('shop-overlay').style.display = 'none'; document.getElementById('menu-overlay').style.display = 'flex'; }
-    goToMenu() { document.getElementById('death-overlay').style.display = 'none'; document.getElementById('menu-overlay').style.display = 'flex'; }
-    
-    loop() { 
-        this.update(); 
-        this.draw(); 
-        requestAnimationFrame(() => this.loop()); 
-    }
+    loop() { this.update(); this.draw(); requestAnimationFrame(() => this.loop()); }
 }
-
-let game;
-window.onload = () => { game = new Game(); };
+const game = new Game();
 </script>
 </body>
 </html>
