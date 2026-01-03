@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Road: Persistent Campaign</title>
+    <title>Neon Road: Fleet Command</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -13,774 +13,737 @@
             --neon-red: #ff3131;
             --neon-yellow: #ffcc00;
             --neon-green: #39ff14;
-            --neon-orange: #ff8c00;
-            --neon-cyan: #00ffff;
         }
         body { 
-            margin: 0; background: #050508; color: #fff; 
+            margin: 0; background: #000; color: #fff; 
             font-family: 'Orbitron', sans-serif; overflow: hidden; 
             display: flex; justify-content: center; align-items: center; 
             height: 100vh; touch-action: none;
         }
         #game-container {
-            position: relative; box-shadow: 0 0 60px rgba(0, 242, 255, 0.2);
+            position: relative; 
             background: #000; width: 100%; height: 100%;
-            max-width: 400px; max-height: 700px; border: 1px solid #1a1a1a;
-            display: flex; flex-direction: column;
+            max-width: 450px; max-height: 800px; border: 2px solid #222;
+            display: flex; flex-direction: column; overflow: hidden;
         }
-        canvas { display: block; width: 100%; flex: 1; }
+        canvas { display: block; width: 100%; flex: 1; background: #000; image-rendering: pixelated; }
         
         #control-deck {
-            height: 120px;
-            background: linear-gradient(to bottom, #111, #000);
-            border-top: 2px solid #222;
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            pointer-events: auto;
-        }
-        #control-deck::after {
-            content: "CONTROL DECK - SLIDE HERE";
-            font-size: 8px;
-            color: #444;
-            letter-spacing: 2px;
+            height: 120px; background: linear-gradient(to bottom, #151515, #000);
+            border-top: 3px solid var(--neon-blue); position: relative;
+            cursor: crosshair; z-index: 30;
         }
         #deck-glow {
-            position: absolute;
-            top: 0; height: 2px; width: 60px;
-            background: var(--neon-blue);
-            box-shadow: 0 0 15px var(--neon-blue);
-            transition: left 0.1s ease-out;
+            position: absolute; top: 0; height: 6px; width: 120px;
+            background: var(--neon-blue); box-shadow: 0 0 30px var(--neon-blue);
+            pointer-events: none;
         }
 
         #ui-layer {
             position: absolute; top: 0; left: 0; width: 100%;
-            padding: 15px; box-sizing: border-box; pointer-events: none;
-            display: flex; justify-content: space-between; z-index: 5;
+            padding: 20px; box-sizing: border-box; pointer-events: none;
+            display: none; justify-content: space-between; z-index: 50;
         }
         .stat-box { 
-            background: rgba(0,0,0,0.8); padding: 8px 12px; 
-            border-bottom: 2px solid var(--neon-blue); backdrop-filter: blur(8px);
-            min-width: 50px;
+            background: rgba(0,0,0,0.8); padding: 10px 15px; 
+            border-left: 3px solid var(--neon-blue); border-top: 1px solid #333;
         }
-        .stat-label { font-size: 7px; color: var(--neon-blue); display: block; text-transform: uppercase; letter-spacing: 1px; }
-        .stat-value { font-size: 11px; font-weight: 900; }
+        .stat-label { font-size: 10px; color: var(--neon-blue); display: block; text-transform: uppercase; letter-spacing: 2px; }
+        .stat-value { font-size: 18px; font-weight: 900; text-shadow: 0 0 10px var(--neon-blue); }
         
         #progression-container {
-            position: absolute; bottom: 130px; left: 50%; transform: translateX(-50%);
-            width: 80%; pointer-events: none;
+            position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%);
+            width: 85%; pointer-events: none; z-index: 40; display: none;
         }
-        .prog-bar-bg { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; position: relative; }
-        .prog-bar-fill { height: 100%; background: var(--neon-blue); width: 0%; transition: width 0.3s; box-shadow: 0 0 10px var(--neon-blue); }
+        .prog-bar-bg { width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; border: 1px solid #333; }
+        .prog-bar-fill { height: 100%; background: linear-gradient(90deg, var(--neon-blue), #fff); width: 0%; transition: width 0.3s; }
+
+        #tech-indicator {
+            position: absolute; bottom: 160px; left: 50%; transform: translateX(-50%);
+            color: var(--neon-purple); font-weight: 900; font-size: 12px;
+            text-shadow: 0 0 10px var(--neon-purple); display: none;
+        }
 
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); display: none; flex-direction: column;
+            background: rgba(0,0,0,0.8); display: none; flex-direction: column;
             justify-content: center; align-items: center; text-align: center;
-            z-index: 20; padding: 20px; box-sizing: border-box;
+            z-index: 100; padding: 30px; box-sizing: border-box;
         }
         
-        #menu-overlay { display: flex; }
-        h2 { color: #fff; font-size: 42px; margin: 0; text-shadow: 0 0 20px var(--neon-blue); font-weight: 900; }
-        p { letter-spacing: 3px; font-weight: 700; color: var(--neon-blue); margin-top: 5px; font-size: 12px; }
+        h2 { color: #fff; font-size: 48px; margin: 0; text-shadow: 0 0 30px var(--neon-blue); font-weight: 900; letter-spacing: -2px; }
+        p { letter-spacing: 4px; font-weight: 700; color: var(--neon-blue); margin-top: 10px; font-size: 14px; }
         
-        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; pointer-events: auto; }
         .btn {
-            padding: 18px 28px; font-size: 14px; font-family: 'Orbitron', sans-serif;
+            padding: 20px 30px; font-size: 16px; font-family: 'Orbitron', sans-serif;
             font-weight: 900; cursor: pointer; border: 2px solid var(--neon-blue);
-            background: #000; color: var(--neon-blue); width: 280px; text-transform: uppercase;
+            background: rgba(0,0,0,0.9); color: var(--neon-blue); width: 100%; text-transform: uppercase;
+            margin-top: 15px; transition: all 0.2s; outline: none;
         }
-        .btn:hover:not(:disabled) { background: var(--neon-blue); color: #000; }
-        .btn:disabled { border-color: #444; color: #444; cursor: not-allowed; }
+        .btn:hover:not(:disabled) { background: var(--neon-blue); color: #000; box-shadow: 0 0 30px var(--neon-blue); }
+        .btn:disabled { opacity: 0.3; cursor: not-allowed; border-color: #444; color: #444; }
 
         #boss-ui {
-            position: absolute; top: 70px; left: 50%; transform: translateX(-50%);
-            width: 85%; display: none; z-index: 10;
-            background: rgba(255, 49, 49, 0.05);
-            padding: 10px;
-            border-left: 2px solid var(--neon-red);
-            border-right: 2px solid var(--neon-red);
+            position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+            width: 80%; display: none; z-index: 60;
         }
-        .boss-bar-bg { 
-            width: 100%; height: 6px; background: rgba(0,0,0,0.8); 
-            border: 1px solid rgba(255, 49, 49, 0.3);
-            position: relative; overflow: hidden;
-        }
-        .boss-bar-fill { height: 100%; background: var(--neon-red); width: 100%; transition: width 0.1s; position: relative; }
-        
-        .boss-name { color: var(--neon-red); font-size: 9px; text-transform: uppercase; margin-bottom: 6px; display: block; text-align: center; font-weight: 900; letter-spacing: 2px; }
+        .hp-bar-outer { width: 100%; height: 12px; background: #200; border: 2px solid #fff; border-radius: 6px; overflow: hidden; }
+        .hp-bar-inner { height: 100%; background: var(--neon-red); width: 100%; }
+        .hp-label { color: #fff; font-size: 10px; font-weight: 900; text-align: center; display: block; margin-bottom: 4px; }
     </style>
 </head>
 <body>
 
 <div id="game-container">
     <div id="ui-layer">
-        <div style="display: flex; gap: 5px;">
+        <div style="display: flex; gap: 15px;">
             <div class="stat-box">
                 <span class="stat-label">SQUAD</span>
                 <span id="squad-display" class="stat-value">1</span>
             </div>
-            <div class="stat-box">
+            <div class="stat-box" style="border-color: var(--neon-purple)">
                 <span class="stat-label">SECTOR</span>
-                <span id="sector-display" class="stat-value" style="color: var(--neon-purple)">1</span>
+                <span id="sector-display" class="stat-value">1</span>
             </div>
         </div>
-        <div class="stat-box" style="text-align: right;">
+        <div class="stat-box" style="border-color: var(--neon-green)">
             <span class="stat-label">CREDITS</span>
-            <span id="credit-display" class="stat-value" style="color: var(--neon-green)">0</span>
+            <span id="credit-display" class="stat-value">0</span>
         </div>
     </div>
+
+    <div id="tech-indicator">ACTIVE: <span id="tech-name">NONE</span></div>
 
     <div id="progression-container">
         <div class="prog-bar-bg"><div id="prog-fill" class="prog-bar-fill"></div></div>
     </div>
 
     <div id="boss-ui">
-        <span id="boss-title" class="boss-name">BOSS SIGNATURE DETECTED</span>
-        <div class="boss-bar-bg"><div id="boss-fill" class="boss-bar-fill"></div></div>
+        <span id="boss-title" class="hp-label">BOSS DETECTED</span>
+        <div class="hp-bar-outer"><div id="boss-fill" class="hp-bar-inner"></div></div>
     </div>
 
-    <div id="menu-overlay" class="overlay">
+    <div id="menu-overlay" class="overlay" style="display: flex;">
         <h2>NEON ROAD</h2>
-        <p>RECON UNIT ALPHA // DEEP SPACE</p>
-        <div class="btn-group">
-            <button class="btn" onclick="game.startCampaign()">New Run</button>
-            <button class="btn" style="border-color: var(--neon-purple); color: var(--neon-purple);" onclick="game.openMarket()">Black Market</button>
-        </div>
+        <p>RECON UNIT ALPHA</p>
+        <button class="btn" onclick="game.startCampaign()">Initialize Run</button>
+        <button class="btn" style="border-color: var(--neon-purple); color: var(--neon-purple);" onclick="game.openMarket()">Black Market</button>
     </div>
 
     <div id="market-overlay" class="overlay">
-        <h2 style="font-size: 24px;">BLACK MARKET</h2>
-        <p>TOTAL CREDITS: <span id="market-credits">0</span></p>
-        <div class="btn-group" id="market-items"></div>
-        <button class="btn" onclick="game.closeMarket()" style="margin-top: 15px;">Back</button>
+        <h2 style="font-size: 28px;">BLACK MARKET</h2>
+        <p>AVAILABLE CREDITS: <span id="market-credits">0</span></p>
+        <div id="market-items" style="width: 100%; max-height: 450px; overflow-y: auto; margin: 20px 0;"></div>
+        <button class="btn" onclick="game.closeMarket()">Return to Menu</button>
     </div>
 
     <div id="death-overlay" class="overlay">
-        <h2 id="death-title" style="color: var(--neon-red)">SQUAD LOST</h2>
-        <p id="death-stats">SECTOR 1 REACHED</p>
-        <div class="btn-group">
-            <button id="continue-btn" class="btn" style="border-color: var(--neon-green); color: var(--neon-green);" onclick="game.buyContinue()">Buy Continue</button>
-            <button class="btn" onclick="game.startCampaign()">Restart Run</button>
-            <button class="btn" onclick="game.showMenu()">Menu</button>
-        </div>
+        <h2 style="color: var(--neon-red)">SQUAD LOST</h2>
+        <p id="death-stats">MISSION FAILURE</p>
+        <button class="btn" onclick="game.startCampaign()">New Run</button>
+        <button class="btn" onclick="game.showMenu()">Main Menu</button>
     </div>
 
     <div id="victory-overlay" class="overlay">
         <h2 style="color: var(--neon-green)">SECTOR CLEAR</h2>
-        <p>SQUAD PRESERVED</p>
-        <div class="btn-group">
-            <button class="btn" onclick="game.nextSector()">Advance to Next Sector</button>
-        </div>
+        <button class="btn" onclick="game.nextSector()">Advance Sector</button>
+        <button class="btn" style="border-color: var(--neon-purple); color: var(--neon-purple);" onclick="game.openMarket()">Visit Market</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
-    
     <div id="control-deck"><div id="deck-glow"></div></div>
 </div>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d', { alpha: false });
+const ctx = canvas.getContext('2d');
 const deck = document.getElementById('control-deck');
 const glow = document.getElementById('deck-glow');
 
-const GAME_WIDTH = 400;
-const GAME_HEIGHT = 580; 
-const NORMAL_CAP = 15;
-const BOSS_CAP = 40; 
-const TECH_DURATION_FRAMES = 600;
-const EMP_DURATION_FRAMES = 180; // 3 seconds
-
+const GAME_WIDTH = 450;
+const GAME_HEIGHT = 700;
 canvas.width = GAME_WIDTH;
 canvas.height = GAME_HEIGHT;
 
-const MONSTER_SHAPES = [
-    { pixels: ["  X     X  ", "   X   X   ", "  XXXXXXX  ", " XX XXX XX ", "XXXXXXXXXXX", "X XXXXXXX X", "X X     X X"], baseHp: 15 },
-    { pixels: ["  XXXX   ", " XXXXXX  ", "XXXXXXXX ", "XX XX XX ", "XXXXXXXX ", "  X  X   ", " X XX X  "], baseHp: 8 },
-    { pixels: ["   XX    ", "  XXXX   ", " XXXXXX  ", "XX XX XX ", "XXXXXXXX ", " XX  XX  ", "X  XX  X "], baseHp: 3 },
-    { pixels: ["  XXXXXX  ", " XXXXXXXX ", "XXXXXXXXXX", "XX XXXX XX", "XXXXXXXXXX", "  XX  XX  "], baseHp: 40 }, 
-    { pixels: [ 
-        "      XXXXXX      ",
-        "    XXXXXXXXXX    ",
-        "  XXXXXXXXXXXXXX  ",
-        " XXXX  XXXX  XXXX ",
-        "XXXXXXXXXXXXXXXXXX",
-        "XXXXXXXXXXXXXXXXXX",
-        " XX  XX XX XX  XX ",
-        " XX  XX    XX  XX ",
-        "  X  X      X  X  "
-    ], baseHp: 1500 }
+ctx.imageSmoothingEnabled = false;
+
+const DESIGNS = [
+    ["  X  X  ", "   XX   ", "  XXXX  ", " XXXXXX ", "XX XX XX", "  XXXX  "],
+    ["  X     X  ", "   X   X   ", "  XXXXXXX  ", " XX XXX XX ", "XXXXXXXXXXX", "X XXXXXXX X", "X X     X X", "   XX XX   "],
+    ["    XX    ", "   XXXX   ", "  XXXXXX  ", " XX XX XX ", " XXXXXXXX ", "  X XX X  ", " X      X ", "  X    X  "],
+    ["  XX  XX  ", " XXXXXXXXX", "XXXXXXXXXX", "XX XXXX XX", "XXXXXXXXXX", "  X XX X  "],
+    ["   X  X   ", "  XXXXXX  ", " XX XX XX ", "XXXXXXXXXX", " X      X ", "  X    X  "],
+    ["  XXXXXX  ", " XXXXXXXX ", "XXXXXXXXXX", "XXX XX XXX", "XXXXXXXXXX", " X XXXX X ", "  X    X  "],
+    ["    XX    ", "  XXXXXX  ", "XXXXXXXXXX", "  XXXXXX  ", "   XXXX   ", "    XX    "],
+    [" X      X ", "  X    X  ", "  XXXXXX  ", "XXXXXXXXXX", "XX XXXX XX", "  XXXXXX  ", "   X  X   "],
+    [" XXXXXXXX ", "XXXXXXXXXX", "XX  XX  XX", "XXXXXXXXXX", "XXXXXXXXXX", " XX    XX " ],
+    ["  XXXXXX  ", " X      X ", " X  XX  X ", " XXXXXXXX ", " X X  X X ", " X      X "],
+    [" XX    XX ", "  XX  XX  ", " XXXXXXXX ", "XX XX XX  ", "XXXXXXXXXX", "X  XXXX  X"],
+    ["   XXXX   ", "  XXXXXX  ", " XXXXXXXX ", "XX XX XX XX", "XXXXXXXXXXX", "XXX XX XXX", " X      X "]
 ];
 
-const BOSS_QUOTES = {
-    INTRO: ["PREPARE FOR OBLIVION!", "SQUAD DETECTED. PURGE COMMENCING.", "YOU HAVE GONE FAR ENOUGH!", "I AM THE END OF YOUR ROAD."],
-    PURGE: ["ALL MINOR LIFEFORMS: TERMINATE.", "MY FIELD. MY RULES.", "CLEANING UP THE TRASH.", "LEAVE US."],
-    PAIN: ["OUCH!", "GRAAAH!", "MY PLATING!", "YOU'LL PAY FOR THAT!"],
-    DEFEAT: ["THIS IS... IMPOSSIBLE...", "I WILL... RETURN...", "SYSTEM... OFFLINE..."],
-    ELITE: ["ELITE INTERCEPTOR ACTIVE", "YOU SHALL NOT PASS", "PROTOCOL: TERMINATE"]
-};
-
-const MOB_COLORS = ['#bc13fe', '#ff0077', '#ff8c00', '#00f2ff'];
-
-const TECH_TYPES = {
-    PULSE: { id: 'PULSE', color: '#00f2ff', label: 'PLASMA PULSE' }, // Point defense weapon
-    BURST: { id: 'BURST', color: '#ff0077', label: 'VOID BURST' },
-    RAPID: { id: 'RAPID', color: '#ffcc00', label: 'CHRONO RAPID' },
-    EMP: { id: 'EMP', color: '#bc13fe', label: 'EMP SINGULARITY' }
-};
+const COLORS = ['#bc13fe', '#00f2ff', '#ff0077', '#ffcc00', '#39ff14', '#ff3131'];
 
 class Game {
     constructor() {
         this.totalCredits = 0;
-        this.upgrades = { hull: 0, speed: 0, mercs: 0 };
+        this.upgrades = { hull: 0, speed: 0, perma: 0, temp: 0, color: '#00f2ff' };
         this.currentSector = 1;
-        this.persistentSquadSize = 1;
-        this.livingMercCount = 0; 
+        this.persistentSquad = 1;
+        this.MAX_SQUAD = 15;
+
+        this.stars = Array.from({length: 80}, () => ({
+            x: Math.random() * GAME_WIDTH,
+            y: Math.random() * GAME_HEIGHT,
+            v: 0.5 + Math.random() * 1.5,
+            z: Math.random() * 2 + 1
+        }));
+
+        this.menuMobs = Array.from({length: 12}, () => ({
+            startX: Math.random() * GAME_WIDTH,
+            x: 0,
+            y: Math.random() * GAME_HEIGHT,
+            v: 0.8 + Math.random() * 0.8,
+            offset: Math.random() * Math.PI * 2,
+            d: Math.floor(Math.random() * 12),
+            c: COLORS[Math.floor(Math.random() * COLORS.length)],
+            scale: 1.5
+        }));
+
+        this.setupInput();
         this.reset();
-        this.stars = Array.from({length: 40}, () => ({ x: Math.random() * GAME_WIDTH, y: Math.random() * GAME_HEIGHT, v: 0.5 + Math.random() * 2 }));
-        this.setupListeners();
+        this.showMenu();
         this.loop();
     }
 
     reset() {
-        this.isActive = false;
+        this.active = false;
         this.frame = 0;
         this.kills = 0;
-        this.targetKills = 40 + (this.currentSector * 20); 
-        this.squadSize = this.persistentSquadSize; 
-        this.activeTech = null;
-        this.techTimer = 0;
-        this.empTimer = 0;
+        this.targetKills = 40 + (this.currentSector * 20);
         this.creditsThisRun = 0;
-        this.currentX = 200;
-        this.targetX = 200;
+        this.playerX = GAME_WIDTH / 2;
+        this.targetX = GAME_WIDTH / 2;
+        this.isFiring = false;
+        this.bossActive = false;
         this.entities = [];
         this.bullets = [];
         this.enemyBullets = [];
-        this.particles = [];
-        this.floatingTexts = [];
-        this.isFiring = false;
-        this.bossActive = false;
-        this.eliteActive = false;
-        this.sectorBoss = null;
-        this.amoebaUnits = [];
-        this.purgePulseRadius = 0;
-        this.bossEmpDrops = 0; 
-        this.rebuildAmoeba(); 
-        document.getElementById('boss-ui').style.display = 'none';
-        document.getElementById('prog-fill').style.width = '0%';
+        this.squad = [];
+        this.tech = null;
+        this.techTimer = 0;
+        this.initSquad();
     }
 
-    rebuildAmoeba() {
-        const cap = (this.bossActive || this.eliteActive) ? BOSS_CAP : NORMAL_CAP;
-        const currentCapCount = Math.floor(Math.min(cap, this.squadSize));
-        const currentMercsInField = this.amoebaUnits.filter(u => u.isMerc).length;
-        const currentStandardInField = this.amoebaUnits.filter(u => !u.isMerc).length;
-
-        if (currentStandardInField < currentCapCount) {
-            for (let i = 0; i < currentCapCount - currentStandardInField; i++) this.amoebaUnits.push(this.createUnit(false));
-        }
-        if (currentMercsInField < this.livingMercCount) {
-            for (let i = 0; i < this.livingMercCount - currentMercsInField; i++) this.amoebaUnits.push(this.createUnit(true));
+    updateHUDVisibility(show) {
+        const display = show ? 'flex' : 'none';
+        document.getElementById('ui-layer').style.display = display;
+        document.getElementById('progression-container').style.display = display;
+        if(!show) {
+            document.getElementById('boss-ui').style.display = 'none';
+            document.getElementById('tech-indicator').style.display = 'none';
         }
     }
 
-    createUnit(isMerc) {
-        return { 
-            angle: Math.random() * Math.PI * 2, 
-            baseDist: 20 + Math.random() * 20, 
-            phase: Math.random() * Math.PI * 2, 
-            rotSpeed: 0.01 + Math.random() * 0.015, 
-            x: 0, y: 0, hp: 1 + this.upgrades.hull, isMerc: isMerc 
-        };
-    }
-
-    setupListeners() {
-        const handleInput = (clientX) => {
-            const rect = deck.getBoundingClientRect();
-            let x = (clientX - rect.left) * (GAME_WIDTH / rect.width);
-            this.targetX = Math.max(20, Math.min(GAME_WIDTH - 20, x));
-            glow.style.left = (this.targetX - 30) + "px";
-        };
-        const onStart = (e) => { if(!this.isActive) return; this.isFiring = true; handleInput(e.touches ? e.touches[0].clientX : e.clientX); };
-        const onMove = (e) => { if(!this.isActive) return; handleInput(e.touches ? e.touches[0].clientX : e.clientX); };
-        deck.addEventListener('mousedown', onStart);
-        window.addEventListener('mousemove', (e) => { if(this.isFiring) onMove(e); });
-        window.addEventListener('mouseup', () => this.isFiring = false);
-        deck.addEventListener('touchstart', (e) => { e.preventDefault(); onStart(e); }, {passive:false});
-        deck.addEventListener('touchmove', (e) => { e.preventDefault(); onMove(e); }, {passive:false});
-        deck.addEventListener('touchend', () => this.isFiring = false);
-    }
-
-    startCampaign() { this.currentSector = 1; this.persistentSquadSize = 1; this.livingMercCount = this.upgrades.mercs; this.start(); }
-    buyContinue() {
-        const cost = 1500 + (this.currentSector * 200);
-        if (this.totalCredits >= cost) { this.totalCredits -= cost; this.persistentSquadSize = Math.max(1, Math.floor(this.persistentSquadSize / 2)); this.start(); }
-    }
-    nextSector() { this.currentSector++; this.persistentSquadSize = this.squadSize; this.start(); }
-    start() { this.reset(); this.isActive = true; document.querySelectorAll('.overlay').forEach(o => o.style.display = 'none'); document.getElementById('sector-display').innerText = this.currentSector; }
-    showMenu() { document.querySelectorAll('.overlay').forEach(o => o.style.display = 'none'); document.getElementById('menu-overlay').style.display = 'flex'; this.isActive = false; }
-    openMarket() { document.getElementById('menu-overlay').style.display = 'none'; document.getElementById('market-overlay').style.display = 'flex'; this.renderMarket(); }
-    closeMarket() { document.getElementById('market-overlay').style.display = 'none'; document.getElementById('menu-overlay').style.display = 'flex'; }
-
-    renderMarket() {
-        const credits = Math.floor(this.totalCredits);
-        document.getElementById('market-credits').innerText = credits;
-        const container = document.getElementById('market-items');
-        const items = [
-            { id: 'hull', label: `Upgrade Hull (Lvl ${this.upgrades.hull})`, cost: 500, desc: "+1 HP to every ship" },
-            { id: 'speed', label: `Overclock Cores (Lvl ${this.upgrades.speed})`, cost: 750, desc: "Faster Fire Rate" },
-            { id: 'mercs', label: `Mercenary Ship (${this.upgrades.mercs}/5)`, cost: 2500 + (this.upgrades.mercs * 1500), desc: "Respawn only at start of New Run", max: 5 }
-        ];
-        container.innerHTML = items.map(item => {
-            const isMaxed = item.max !== undefined && this.upgrades[item.id] >= item.max;
-            const canAfford = credits >= item.cost;
-            return `<div style="margin-bottom: 8px;"><button class="btn" ${(!canAfford || isMaxed) ? 'disabled' : ''} onclick="game.buyUpgrade('${item.id}', ${item.cost})">${isMaxed ? 'MAXED OUT' : `${item.label} - ${item.cost} CR`}</button><div style="font-size: 8px; color: #888; margin-top: 2px;">${item.desc}</div></div>`;
-        }).join('');
-    }
-
-    buyUpgrade(type, cost) { if (this.totalCredits >= cost) { this.totalCredits -= cost; this.upgrades[type]++; this.renderMarket(); } }
-
-    damageSquad(amount = 1) {
-        if (this.amoebaUnits.length === 0) return;
-        const idx = Math.floor(Math.random() * this.amoebaUnits.length);
-        const unit = this.amoebaUnits[idx];
-        unit.hp -= amount;
-        if (unit.hp <= 0) {
-            this.createExplosion(unit.x, unit.y, unit.isMerc ? '#bc13fe' : '#fff', 12);
-            if (unit.isMerc) this.livingMercCount = Math.max(0, this.livingMercCount - 1);
-            else this.squadSize = Math.max(0, this.squadSize - 1);
-            this.amoebaUnits.splice(idx, 1);
-            if (this.amoebaUnits.length === 0) this.gameOver();
-        }
-    }
-
-    triggerPurgePulse(boss) {
-        this.purgePulseRadius = 1;
-        this.addFloatingText(boss.x, boss.y + 100, BOSS_QUOTES.PURGE[Math.floor(Math.random()*BOSS_QUOTES.PURGE.length)], '#ff3131', true);
+    initSquad() {
+        this.squad = [];
+        const baseCount = Math.min(this.MAX_SQUAD, this.persistentSquad);
+        for(let i=0; i < baseCount; i++) this.addUnit('player');
         
-        this.entities.forEach(e => {
-            if (e.type === 'mob' || e.type === 'barrier') {
-                setTimeout(() => {
-                    this.createExplosion(e.x, e.y, e.color || '#ff3131', 15);
-                    e.hp = 0; e.y = 999;
-                }, 200 + Math.random() * 400);
-            }
+        for(let i=0; i < this.upgrades.perma; i++) this.addUnit('perma');
+        for(let i=0; i < this.upgrades.temp; i++) this.addUnit('temp');
+    }
+
+    addUnit(type) {
+        if(this.squad.length >= this.MAX_SQUAD) return;
+
+        let color = this.upgrades.color;
+        if(type === 'perma') color = '#bc13fe';
+        if(type === 'temp') color = '#ffcc00';
+        
+        this.squad.push({
+            type, color,
+            angle: Math.random() * Math.PI * 2,
+            dist: 15 + Math.random() * 20,
+            rot: 0.03 + Math.random() * 0.02,
+            hp: 1 + this.upgrades.hull,
+            x: 0, y: 0
         });
     }
 
-    spawnMiniBoss() {
-        this.eliteActive = true;
-        document.getElementById('boss-ui').style.display = 'block';
-        document.getElementById('boss-title').innerText = "ELITE INTERCEPTOR";
-        const bossData = MONSTER_SHAPES[3];
-        this.sectorBoss = {
-            type: 'elite', x: 200, y: -50, hp: bossData.baseHp * (2.5 + this.currentSector), 
-            maxHp: bossData.baseHp * (2.5 + this.currentSector), color: '#ffcc00',
-            movePhase: 0, fireTimer: 0, hitFlash: 0, shapeIdx: 3, introSaid: false
+    setupInput() {
+        const handleInteraction = (clientX) => {
+            const rect = canvas.getBoundingClientRect();
+            const relX = (clientX - rect.left) / rect.width;
+            this.targetX = Math.max(30, Math.min(GAME_WIDTH - 30, relX * GAME_WIDTH));
+            const deckWidth = deck.offsetWidth;
+            glow.style.left = (relX * deckWidth - 60) + "px";
         };
-        this.entities.push(this.sectorBoss);
+
+        window.addEventListener('touchstart', (e) => {
+            if (!this.active) return;
+            this.isFiring = true;
+            handleInteraction(e.touches[0].clientX);
+        }, { passive: false });
+
+        window.addEventListener('touchmove', (e) => {
+            if (!this.active) return;
+            e.preventDefault();
+            handleInteraction(e.touches[0].clientX);
+        }, { passive: false });
+
+        window.addEventListener('touchend', () => {
+            this.isFiring = false;
+        });
+
+        window.addEventListener('mousedown', (e) => {
+            if (!this.active) return;
+            this.isFiring = true;
+            handleInteraction(e.clientX);
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!this.active || !this.isFiring) return;
+            handleInteraction(e.clientX);
+        });
+
+        window.addEventListener('mouseup', () => {
+            this.isFiring = false;
+        });
     }
 
-    spawnBoss() {
-        this.bossActive = true;
-        this.bossEmpDrops = 0;
-        document.getElementById('boss-ui').style.display = 'block';
-        document.getElementById('boss-title').innerText = "SECTOR COMMANDER";
-        const bossData = MONSTER_SHAPES[4];
-        this.sectorBoss = {
-            type: 'boss', x: 200, y: -250, hp: bossData.baseHp * (1 + this.currentSector * 1.5), 
-            maxHp: bossData.baseHp * (1 + this.currentSector * 1.5), color: '#ff3131',
-            movePhase: 0, fireTimer: 0, hitFlash: 0, shapeIdx: 4, introSaid: false
-        };
-        this.entities.push(this.sectorBoss);
-        this.triggerPurgePulse(this.sectorBoss);
-    }
-
-    createExplosion(x, y, color, count = 10) {
-        for(let i=0; i<count; i++) this.particles.push({ x, y, vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8, life: 1.0, color });
-    }
-
-    addFloatingText(x, y, text, color, isBossCallout = false) {
-        let finalX = x, finalY = y, rotation = 0;
-        if (isBossCallout) {
-            const isLeft = Math.random() > 0.5;
-            finalX = isLeft ? x - 120 : x + 120;
-            finalY = y + (Math.random() * 100 - 50);
-            rotation = (Math.random() * 0.4) - 0.2;
-            finalX = Math.max(60, Math.min(GAME_WIDTH - 60, finalX));
-        }
-        this.floatingTexts.push({ x: finalX, y: finalY, text, color, life: 1.0, isCallout: isBossCallout, scale: isBossCallout ? 1.4 : 1.0, rotation: rotation });
+    startCampaign() { this.currentSector = 1; this.persistentSquad = 1; this.upgrades.temp = 0; this.start(); }
+    nextSector() { this.currentSector++; this.persistentSquad = this.squad.filter(u=>u.type==='player').length; this.start(); }
+    
+    start() { 
+        this.reset(); 
+        this.active = true; 
+        this.updateHUDVisibility(true);
+        document.querySelectorAll('.overlay').forEach(o => o.style.display = 'none');
+        document.getElementById('sector-display').innerText = this.currentSector;
     }
 
     spawn() {
-        const prog = this.kills / this.targetKills;
-        const rand = Math.random();
+        if(this.bossActive) return;
+        const r = Math.random();
+        
+        const activeTechCrates = this.entities.filter(e => e.type === 'crate_tech').length;
 
-        if (this.frame % 180 === 0) {
-            let techToDrop = null;
-            if (this.bossActive && this.sectorBoss) {
-                const bossHpPct = this.sectorBoss.hp / this.sectorBoss.maxHp;
-                if ((this.bossEmpDrops === 0 && bossHpPct < 0.7) || 
-                    (this.bossEmpDrops === 1 && bossHpPct < 0.3)) {
-                    techToDrop = TECH_TYPES.EMP;
-                    this.bossEmpDrops++;
-                }
-            }
-            if (!techToDrop) {
-                const types = Object.values(TECH_TYPES);
-                const weights = [1, 1, 1, 0.2]; 
-                let total = weights.reduce((a,b) => a+b, 0);
-                let r = Math.random() * total;
-                let sum = 0;
-                for(let i=0; i<types.length; i++) {
-                    sum += weights[i];
-                    if (r <= sum) { techToDrop = types[i]; break; }
-                }
-            }
-            this.entities.push({ type: 'tech', x: Math.random() * 300 + 50, y: -50, tech: techToDrop });
-        }
-
-        if (this.frame % 100 === 0) {
-             this.entities.push({ type: 'credit', x: Math.random() * 340 + 30, y: -50, value: 50 + (this.currentSector * 25) });
-        }
-
-        if (!this.eliteActive && !this.bossActive) {
-            if ((prog >= 0.25 && prog < 0.27) || (prog >= 0.5 && prog < 0.52) || (prog >= 0.75 && prog < 0.77)) {
-                this.spawnMiniBoss();
-                return;
-            }
-            if (prog >= 1.0) {
-                this.spawnBoss();
-                return;
-            }
-        }
-
-        if (this.bossActive || this.eliteActive) {
-            if (rand > 0.90) { 
-                const w = 120;
-                const targetVal = Math.floor(Math.random() * 3) + 1;
-                this.entities.push({ 
-                    type: 'barrier', x: Math.random() * (GAME_WIDTH - w) + w/2, y: -50, width: w, isPositive: true, 
-                    targetSquad: targetVal, currentFill: 0, hp: targetVal * 15, maxHp: targetVal * 15
-                });
-            }
-            return;
-        }
-
-        if (rand > 0.85) {
-            const isPos = Math.random() > 0.4;
-            const w = isPos ? 120 : 180;
-            const targetVal = Math.floor(Math.random() * 5) + 1;
+        // Less clutter: Increased mob chance, decreased small loot chance
+        if(r < 0.65) {
+            const d = Math.floor(Math.random() * 12);
+            const hp = (20 + d*8) * (1 + (this.currentSector-1)*0.25);
+            const startX = 50 + Math.random() * (GAME_WIDTH - 100);
             this.entities.push({ 
-                type: 'barrier', x: Math.random() * (GAME_WIDTH - w) + w/2, y: -50, width: w, isPositive: isPos, 
-                targetSquad: targetVal, currentFill: isPos ? 0 : (targetVal * 15), hp: targetVal * 15, maxHp: targetVal * 15
+                type: 'mob', startX: startX, x: startX, y: -50, hp: hp, maxHp: hp, d: d, c: COLORS[d % COLORS.length], scale: 1.0,
+                moveOffset: Math.random() * Math.PI * 2, moveSpeed: 0.01 + Math.random() * 0.02, moveAmp: 25 + Math.random() * 40
             });
-        } else if (rand > 0.50) {
-            const shapeIdx = Math.floor(Math.random() * 4);
-            const monsterData = MONSTER_SHAPES[shapeIdx];
-            const danger = 1 + (this.currentSector * 0.2);
-            this.entities.push({ type: 'mob', x: Math.random() * 340 + 30, y: -50, hp: monsterData.baseHp * danger, maxHp: monsterData.baseHp * danger, color: MOB_COLORS[Math.floor(Math.random()*4)], shapeIdx: shapeIdx, hitFlash: 0 });
+        }
+        else if(r < 0.78 && this.currentSector >= 2) {
+            // Mini Boss / Trash: Made larger and distinct
+            const startX = 50 + Math.random() * (GAME_WIDTH - 100);
+            this.entities.push({ 
+                type: 'trash', startX: startX, x: startX, y: -50, hp: 15, maxHp: 15, d: 9, c: '#00f2ff', scale: 1.2,
+                moveOffset: Math.random() * Math.PI * 2, moveSpeed: 0.01, moveAmp: 40
+            });
+        }
+        else if(r < 0.82 && this.currentSector >= 3) {
+            this.entities.push({ type: 'asteroid', x: 50 + Math.random() * (GAME_WIDTH - 100), y: -50, hp: 400, maxHp: 400, d: 6, c: '#444', scale: 2.2 });
+        }
+        else if(r < 0.92) {
+            if(Math.random() > 0.4 && activeTechCrates === 0) {
+                const techs = [
+                    { name: 'PULSE', color: '#00f2ff' },
+                    { name: 'BURST', color: '#ffcc00' },
+                    { name: 'PLASMA', color: '#bc13fe' },
+                    { name: 'EMP', color: '#39ff14' }
+                ];
+                const t = techs[Math.floor(Math.random() * techs.length)];
+                this.entities.push({ type: 'crate_tech', tech: t.name, color: t.color, x: 50 + Math.random() * (GAME_WIDTH - 100), y: -50 });
+            } else {
+                // Larger credit amount, fewer drops
+                this.entities.push({ type: 'crate_credit', amt: 300 + Math.floor(Math.random() * 700), x: 50 + Math.random() * (GAME_WIDTH - 100), y: -50 });
+            }
+        }
+    }
+
+    spawnGate(isForcedGreen = false) {
+        const type = isForcedGreen ? 'green' : (Math.random() > 0.5 ? 'red' : 'green');
+        const gateWidth = GAME_WIDTH * 0.5; 
+        
+        const minX = gateWidth / 2 + 20;
+        const maxX = GAME_WIDTH - (gateWidth / 2) - 20;
+        const randomX = minX + Math.random() * (maxX - minX);
+        
+        if (type === 'red') {
+            const hp = 200 * this.currentSector;
+            this.entities.push({ 
+                type: 'gate', gateType: 'red', x: randomX, y: -120, 
+                hp: hp, maxHp: hp, w: gateWidth 
+            });
+        } else {
+            this.entities.push({ 
+                type: 'gate', gateType: 'green', x: randomX, y: -120, 
+                charge: 0, maxCharge: 150, 
+                rewardMax: 6, 
+                w: gateWidth 
+            });
+        }
+    }
+
+    triggerBoss() {
+        this.bossActive = true;
+        const hp = 5000 * this.currentSector;
+        // Moved starting Y lower so it doesn't overlap health bar
+        this.entities.push({ type: 'boss', x: GAME_WIDTH / 2, y: -200, hp: hp, maxHp: hp, d: 11, c: '#ff3131', scale: 4.0, phase: 0 });
+        document.getElementById('boss-ui').style.display = 'block';
+    }
+
+    fireWeapon() {
+        let rate = Math.max(2, 8 - this.upgrades.speed);
+        if(this.tech === 'PULSE') rate = Math.max(1, Math.floor(rate * 0.4));
+        
+        if(this.frame % rate === 0) {
+            this.squad.forEach(u => {
+                if(this.tech === 'BURST') {
+                    this.bullets.push({ x: u.x, y: u.y - 10, vx: -2, vy: -12, type: this.tech });
+                    this.bullets.push({ x: u.x, y: u.y - 10, vx: 0, vy: -15, type: this.tech });
+                    this.bullets.push({ x: u.x, y: u.y - 10, vx: 2, vy: -12, type: this.tech });
+                } else if(this.tech === 'PULSE') {
+                    this.bullets.push({ x: u.x, y: u.y - 10, vx: 0, vy: -18, type: this.tech });
+                } else if(this.tech === 'EMP') {
+                    this.bullets.push({ x: u.x, y: u.y - 10, vx: 0, vy: -10, type: this.tech });
+                } else {
+                    this.bullets.push({ x: u.x, y: u.y - 10, vx: 0, vy: -15, type: this.tech });
+                }
+            });
         }
     }
 
     update() {
-        if (!this.isActive) return;
+        this.stars.forEach(s => {
+            s.y += s.v;
+            if(s.y > GAME_HEIGHT) { s.y = -20; s.x = Math.random() * GAME_WIDTH; }
+        });
+
+        this.menuMobs.forEach(m => {
+            m.y -= m.v;
+            m.offset += 0.02;
+            m.x = m.startX + Math.sin(m.offset) * 40;
+            if(m.y < -100) { m.y = GAME_HEIGHT + 100; m.startX = Math.random() * GAME_WIDTH; }
+        });
+
+        if (!this.active) return;
+
         this.frame++;
+        this.playerX += (this.targetX - this.playerX) * 0.25;
+
+        if(this.frame % 90 === 0) this.spawn(); 
         
-        if (this.frame % 30 === 0) this.spawn(); 
-
-        if (this.purgePulseRadius > 0) {
-            this.purgePulseRadius += 15;
-            if (this.purgePulseRadius > 800) this.purgePulseRadius = 0;
+        // Forced Green Gate at 4 seconds (240 frames)
+        if(this.frame === 240) {
+            this.spawnGate(true);
+        } else if(this.frame % 540 === 0) {
+            this.spawnGate();
         }
 
-        this.currentX += (this.targetX - this.currentX) * 0.15;
-        
-        if (this.techTimer > 0) { 
-            this.techTimer--; 
-            if (this.techTimer <= 0) this.activeTech = null; 
-        }
-        if (this.empTimer > 0) {
-            this.empTimer--;
-        }
+        const progress = this.kills / this.targetKills;
+        document.getElementById('prog-fill').style.width = Math.min(100, progress * 100) + '%';
+        if(progress >= 1 && !this.bossActive) this.triggerBoss();
 
-        this.rebuildAmoeba();
+        if(this.isFiring) this.fireWeapon();
 
-        const playerY = GAME_HEIGHT - 80;
-        this.amoebaUnits.forEach(u => {
-            u.angle += u.rotSpeed; u.phase += 0.05;
-            const d = u.baseDist + Math.sin(u.phase) * 5;
-            u.x = this.currentX + Math.cos(u.angle) * d;
-            u.y = playerY + Math.sin(u.angle) * d * 0.7;
-        });
-
-        let rate = Math.max(3, 8 - this.upgrades.speed);
-        if (this.activeTech?.id === 'RAPID') rate = 2;
-        if (this.isFiring && this.frame % rate === 0) {
-            this.amoebaUnits.forEach(u => {
-                const bColor = this.activeTech ? this.activeTech.color : '#fff';
-                this.bullets.push({ 
-                    x: u.x, y: u.y - 10, vy: -12, vx: 0, color: bColor, 
-                    dmg: (this.activeTech?.id === 'PULSE' ? 4 : 1), 
-                    size: (this.activeTech?.id === 'PULSE' ? 6 : 2),
-                    isPlasma: (this.activeTech?.id === 'PULSE')
-                });
-            });
-        }
-
-        // Bullet logic
-        this.bullets.forEach(b => { 
-            b.x += b.vx; b.y += b.vy; 
-            
-            // POINT DEFENSE: Plasma bolts (Pulse) zap enemy bullets
-            if (b.isPlasma) {
-                this.enemyBullets.forEach(eb => {
-                    if (Math.abs(b.x - eb.x) < 15 && Math.abs(b.y - eb.y) < 20) {
-                        this.createExplosion(eb.x, eb.y, '#00f2ff', 3);
-                        eb.y = 999; // Kill enemy bullet
+        this.bullets.forEach(b => {
+            b.x += (b.vx || 0);
+            b.y += b.vy;
+            this.entities.forEach(e => {
+                const currentScale = e.type === 'asteroid' ? (e.scale * (0.4 + 0.6 * (e.hp / e.maxHp))) : (e.scale || 1);
+                const box = e.type === 'gate' ? {w: e.w, h: 40} : {w: 40 * currentScale, h: 30 * currentScale};
+                
+                if(Math.abs(b.x - e.x) < box.w / 2 && Math.abs(b.y - e.y) < box.h / 2) {
+                    if (e.type === 'gate' && e.gateType === 'green') {
+                        e.charge = Math.min(e.maxCharge, e.charge + 1);
+                        b.y = -999;
+                        return;
                     }
-                });
-            }
-        });
-        this.bullets = this.bullets.filter(b => b.y > -20);
-        
-        if (this.empTimer <= 0) {
-            this.enemyBullets.forEach(b => {
-                b.x += b.vx; b.y += b.vy;
-                this.amoebaUnits.forEach(u => { if (Math.abs(b.x - u.x) < 12 && Math.abs(b.y - u.y) < 12) { this.damageSquad(1); b.y = 999; } });
-            });
-        }
-        this.enemyBullets = this.enemyBullets.filter(b => b.y < GAME_HEIGHT + 20);
 
-        this.particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.life -= 0.02; });
-        this.particles = this.particles.filter(p => p.life > 0);
-        this.floatingTexts.forEach(t => { t.y -= (t.isCallout ? 0.2 : 1); t.life -= (t.isCallout ? 0.008 : 0.02); });
-        this.floatingTexts = this.floatingTexts.filter(t => t.life > 0);
+                    let dmg = 5;
+                    if(b.type === 'PLASMA') dmg = 25;
+                    if(b.type === 'PULSE') dmg = 8;
+                    if(b.type === 'EMP') dmg = 50;
+                    
+                    e.hp -= dmg; b.y = -999;
+                    if(e.hp <= 0) {
+                        if(e.type === 'boss') this.victory();
+                        else if(e.type === 'trash') { this.kills += 3; this.creditsThisRun += 150; }
+                        else if(e.type === 'mob') { this.kills++; this.creditsThisRun += 20; }
+                        e.y = 999;
+                    }
+                }
+            });
+        });
 
         this.entities.forEach(e => {
-            if (e.type === 'boss' || e.type === 'elite') {
-                const targetY = 160; 
-                if (e.y < targetY) {
-                    e.y += 1.5;
-                } else if (!e.introSaid) {
-                    e.introSaid = true;
-                    const qType = e.type === 'elite' ? BOSS_QUOTES.ELITE : BOSS_QUOTES.INTRO;
-                    this.addFloatingText(e.x, e.y, qType[Math.floor(Math.random()*qType.length)], e.color, true);
-                }
-
-                if (e.y >= targetY && this.empTimer <= 0) {
-                    const moveSpeed = e.type === 'elite' ? 0.01 : 0.02;
-                    e.movePhase += moveSpeed;
-                    e.x = 200 + Math.sin(e.movePhase) * 120;
-                    e.fireTimer++;
-                    if (e.fireTimer % (e.type === 'elite' ? 90 : 60) === 0) {
-                        for(let i=0; i<(e.type === 'elite' ? 4 : 8); i++) {
-                            const ang = (i * Math.PI * 2 / (e.type === 'elite' ? 4 : 8)) + (e.fireTimer * 0.1);
-                            this.enemyBullets.push({ x: e.x, y: e.y + 20, vx: Math.cos(ang) * 2, vy: 2 + Math.sin(ang) * 0.5 });
-                        }
-                    }
-                }
+            if(e.type === 'boss') {
+                // Boss stays lower (220y) so it's clearly below health bar
+                if(e.y < 220) e.y += 1;
+                else { e.phase += 0.02; e.x = GAME_WIDTH / 2 + Math.sin(e.phase) * 100; }
+                if(this.frame % 50 === 0) this.enemyBullets.push({x: e.x, y: e.y + 50, vy: 5});
                 document.getElementById('boss-fill').style.width = (e.hp / e.maxHp * 100) + '%';
-            } else { 
-                if (this.empTimer <= 0) e.y += 3.5; 
+            } else if(e.type === 'gate') {
+                e.y += 1.6;
+            } else if(e.type === 'mob' || e.type === 'trash') {
+                e.y += 1.4; 
+                e.moveOffset += e.moveSpeed; 
+                e.x = e.startX + Math.sin(e.moveOffset) * e.moveAmp;
+            } else {
+                e.y += 1.4;
             }
 
-            this.bullets.forEach(b => {
-                const hw = e.type === 'barrier' ? e.width/2 : (e.type === 'boss' ? 80 : 30);
-                if (Math.abs(b.x - e.x) < hw && Math.abs(b.y - e.y) < 30) {
-                    if (e.type === 'boss' || e.type === 'elite' || e.type === 'mob') {
-                        e.hp -= b.dmg;
-                        if (e.type === 'boss' || e.type === 'elite') e.hitFlash = 2; 
-                        
-                        b.y = -99;
-                        if (e.hp <= 0) {
-                            if (e.type === 'boss') { 
-                                this.addFloatingText(e.x, e.y, BOSS_QUOTES.DEFEAT[0], '#fff', true); 
-                                this.victory(); 
-                            }
-                            else if (e.type === 'elite') { 
-                                this.eliteActive = false; 
-                                document.getElementById('boss-ui').style.display = 'none'; 
-                                e.y = 999; 
-                                this.kills += 5; 
-                            }
-                            else { 
-                                this.kills++; 
-                                e.y = 999; 
-                                this.creditsThisRun += 20; 
-                                this.createExplosion(e.x, e.y, e.color, 12); 
-                            }
-                        }
-                    } else if (e.type === 'barrier') {
-                        if (e.isPositive) e.currentFill = Math.min(e.maxHp, e.currentFill + 1);
-                        else e.currentFill = Math.max(0, e.currentFill - 1);
-                        b.y = -99;
-                    }
-                }
-            });
-
-            if (Math.abs(e.y - playerY) < 50) {
-                let collected = false;
-                this.amoebaUnits.forEach(u => { if (Math.abs(e.x - u.x) < 40) collected = true; });
-                if (collected) {
-                    if (e.type === 'tech') { 
-                        if (e.tech.id === 'EMP') {
-                            this.empTimer = EMP_DURATION_FRAMES;
-                            // EMP ALSO ZAPS ALL CURRENT ENEMY BULLETS ON ACTIVATION
-                            this.enemyBullets.forEach(eb => {
-                                this.createExplosion(eb.x, eb.y, '#bc13fe', 2);
-                            });
-                            this.enemyBullets = [];
-                            this.addFloatingText(e.x, e.y, "EMP SINGULARITY TRIGGERED", "#bc13fe");
-                        } else {
-                            this.activeTech = e.tech; 
-                            this.techTimer = TECH_DURATION_FRAMES; 
-                            this.addFloatingText(e.x, e.y, `${e.tech.label} RECHARGED`, e.tech.color);
-                        }
-                        e.y = 999; 
-                    }
-                    else if (e.type === 'credit') { this.creditsThisRun += e.value; e.y = 999; }
-                    else if (e.type === 'barrier') {
-                        const earned = Math.round((e.currentFill / e.maxHp) * e.targetSquad);
-                        if (e.isPositive) this.squadSize = Math.min(BOSS_CAP, this.squadSize + earned);
-                        else for(let i=0; i<earned; i++) this.damageSquad(1);
-                        e.y = 999;
-                    } else if (e.type === 'mob') { this.damageSquad(1); e.y = 999; }
-                }
+            const currentScale = e.type === 'asteroid' ? (e.scale * (0.4 + 0.6 * (e.hp / e.maxHp))) : (e.scale || 1);
+            const hitW = e.type === 'gate' ? e.w / 2 : 18 * currentScale;
+            const hitH = e.type === 'gate' ? 30 : 25 * currentScale;
+            
+            if(Math.abs(e.y - (GAME_HEIGHT - 100)) < hitH && Math.abs(e.x - this.playerX) < hitW) {
+                this.handleCollision(e);
             }
         });
 
-        this.entities = this.entities.filter(e => e.y < GAME_HEIGHT + 150 && e.hp > 0);
-        document.getElementById('prog-fill').style.width = (Math.min(1, this.kills / this.targetKills) * 100) + '%';
-        this.updateUI();
-    }
+        this.enemyBullets.forEach(eb => {
+            eb.y += eb.vy;
+            if(Math.abs(eb.x - this.playerX) < 20 && Math.abs(eb.y - (GAME_HEIGHT - 100)) < 20) {
+                this.damageSquad(); eb.y = 999;
+            }
+        });
 
-    updateUI() {
-        document.getElementById('squad-display').innerText = Math.floor(this.amoebaUnits.length);
+        if(this.techTimer > 0) {
+            this.techTimer--;
+            document.getElementById('tech-indicator').style.display = 'block';
+            document.getElementById('tech-name').innerText = this.tech + " (" + Math.ceil(this.techTimer/60) + "s)";
+            if(this.techTimer === 0) {
+                this.tech = null;
+                document.getElementById('tech-indicator').style.display = 'none';
+            }
+        }
+
+        this.squad.forEach(u => {
+            u.angle += u.rot;
+            const orbitX = Math.cos(u.angle) * u.dist;
+            const orbitY = Math.sin(u.angle) * u.dist * 0.5;
+            u.x = this.playerX + orbitX;
+            u.y = (GAME_HEIGHT - 100) + orbitY;
+        });
+
+        this.bullets = this.bullets.filter(b => b.y > -20);
+        this.enemyBullets = this.enemyBullets.filter(eb => eb.y < GAME_HEIGHT + 20);
+        this.entities = this.entities.filter(e => e.y < GAME_HEIGHT + 100);
+
+        document.getElementById('squad-display').innerText = this.squad.length;
         document.getElementById('credit-display').innerText = Math.floor(this.creditsThisRun);
     }
 
-    gameOver() { this.isActive = false; this.totalCredits += this.creditsThisRun; document.getElementById('death-overlay').style.display = 'flex'; }
-    victory() { this.isActive = false; this.totalCredits += this.creditsThisRun + (1000 * this.currentSector); document.getElementById('victory-overlay').style.display = 'flex'; }
-
-    draw() {
-        ctx.fillStyle = '#050508'; 
-        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-        
-        this.stars.forEach(s => { 
-            ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.2; 
-            ctx.fillRect(s.x, s.y, 2, 2); s.y += (this.empTimer > 0 ? s.v * 0.1 : s.v); if (s.y > GAME_HEIGHT) s.y = 0; 
-        });
-
-        if (this.empTimer > 0) {
-            ctx.save();
-            ctx.fillStyle = 'rgba(188, 19, 254, 0.05)';
-            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-            ctx.strokeStyle = '#bc13fe';
-            ctx.globalAlpha = Math.random() * 0.2;
-            ctx.lineWidth = 2;
-            for(let i=0; i<5; i++) {
-                let y = (this.frame * 2 + i * 120) % GAME_HEIGHT;
-                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(GAME_WIDTH, y); ctx.stroke();
-            }
-            ctx.restore();
-        }
-
-        if (this.purgePulseRadius > 0 && this.sectorBoss) {
-            ctx.save();
-            ctx.beginPath();
-            ctx.strokeStyle = '#ff3131';
-            ctx.lineWidth = 4;
-            ctx.globalAlpha = 1 - (this.purgePulseRadius / 800);
-            ctx.arc(this.sectorBoss.x, this.sectorBoss.y, this.purgePulseRadius, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.restore();
-        }
-        
-        ctx.globalAlpha = 1.0;
-        this.particles.forEach(p => { ctx.fillStyle = p.color; ctx.globalAlpha = p.life; ctx.fillRect(p.x, p.y, 3, 3); });
-        
-        this.floatingTexts.forEach(t => {
-            ctx.save(); ctx.globalAlpha = t.life; ctx.translate(t.x, t.y);
-            if (t.isCallout) {
-                ctx.rotate(t.rotation); ctx.font = `900 ${18 * t.scale}px Orbitron`;
-                ctx.fillStyle = 'rgba(0,0,0,0.8)'; const textWidth = ctx.measureText(t.text).width; ctx.fillRect(-textWidth/2 - 10, -20, textWidth + 20, 30);
-                ctx.strokeStyle = t.color; ctx.lineWidth = 2; ctx.strokeRect(-textWidth/2 - 10, -20, textWidth + 20, 30);
-            } else { ctx.font = 'bold 12px Orbitron'; }
-            ctx.fillStyle = t.color; ctx.textAlign = 'center'; ctx.fillText(t.text, 0, 0); ctx.restore();
-        });
-
-        this.entities.forEach(e => {
-            ctx.save(); ctx.translate(e.x, e.y);
-            if (e.type === 'boss' || e.type === 'elite' || e.type === 'mob') {
-                const shapeData = MONSTER_SHAPES[e.shapeIdx];
-                const p = (e.type === 'boss' || e.type === 'elite') ? 8 : 4;
-                shapeData.pixels.forEach((row, r) => { [...row].forEach((char, c) => { 
-                    if (char === 'X') { 
-                        let color = e.color;
-                        if (this.empTimer > 0) color = '#555';
-                        if (e.hitFlash > 0 && (e.type === 'boss' || e.type === 'elite')) color = '#fff';
-                        ctx.fillStyle = color; 
-                        ctx.fillRect(c*p - (row.length*p/2), r*p - (shapeData.pixels.length*p/2), p-1, p-1); 
-                    }
-                }); });
-                if (e.hitFlash > 0) e.hitFlash--;
-
-                if (e.type === 'mob' || e.type === 'elite') {
-                    const bw = e.type === 'elite' ? 80 : 30;
-                    ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(-bw/2, 30, bw, 4);
-                    ctx.fillStyle = e.type === 'elite' ? '#ffcc00' : e.color;
-                    ctx.fillRect(-bw/2, 30, bw * (e.hp / e.maxHp), 4);
-                }
-            } else if (e.type === 'tech') { 
-                ctx.strokeStyle = e.tech.color; ctx.lineWidth = 2; ctx.strokeRect(-15, -15, 30, 30); 
-                ctx.fillStyle = e.tech.color; ctx.font = "bold 16px Orbitron"; ctx.textAlign="center"; ctx.fillText(e.tech.id[0], 0, 6); 
-                if (e.tech.id === 'EMP') {
-                   ctx.beginPath(); ctx.strokeStyle = '#fff'; ctx.globalAlpha = 0.5 + Math.sin(this.frame*0.1)*0.5;
-                   ctx.arc(0, 0, 20, 0, Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1;
-                }
-            }
-            else if (e.type === 'credit') { ctx.fillStyle = '#39ff14'; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI*2); ctx.fill(); }
-            else if (e.type === 'barrier') {
-                const color = e.isPositive ? '#39ff14' : '#ff3131'; ctx.strokeStyle = color; ctx.strokeRect(-e.width/2, -15, e.width, 30);
-                ctx.fillStyle = color; ctx.globalAlpha = 0.3; ctx.fillRect(-e.width/2, -15, e.width * (e.currentFill / e.maxHp), 30);
-                ctx.globalAlpha = 1; ctx.fillStyle = '#fff'; ctx.textAlign='center'; ctx.fillText(`${e.isPositive?'+':'-'}${Math.round((e.currentFill/e.maxHp)*e.targetSquad)}`, 0, 5);
-            }
-            ctx.restore();
-        });
-
-        this.amoebaUnits.forEach(u => {
-            ctx.save(); ctx.translate(u.x, u.y);
-            ctx.fillStyle = u.isMerc ? '#bc13fe' : (this.activeTech ? this.activeTech.color : '#00f2ff');
-            ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(8, 6); ctx.lineTo(0, 2); ctx.lineTo(-8, 6); ctx.closePath(); ctx.fill();
-            ctx.restore();
-        });
-
-        // DRAW BULLETS
-        this.bullets.forEach(b => { 
-            ctx.fillStyle = b.color; 
-            if (b.isPlasma) {
-                // Glow effect for plasma
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = b.color;
-                ctx.fillRect(b.x - b.size/2, b.y, b.size, 12);
-                ctx.shadowBlur = 0;
+    handleCollision(e) {
+        if(e.type === 'gate') {
+            if(e.gateType === 'red') {
+                const ratio = Math.max(0.2, e.hp / e.maxHp);
+                const penalty = Math.ceil(this.squad.length * ratio);
+                for(let i = 0; i < penalty; i++) this.damageSquad();
             } else {
-                ctx.fillRect(b.x - b.size/2, b.y, b.size, 10); 
+                const chargePercent = e.charge / e.maxCharge;
+                const floatShips = chargePercent * e.rewardMax;
+                const unitsToAdd = Math.floor(floatShips);
+                
+                for(let i = 0; i < unitsToAdd; i++) {
+                    if(this.squad.length < this.MAX_SQUAD) this.addUnit('player');
+                }
             }
-        });
-
-        this.enemyBullets.forEach(b => { 
-            ctx.fillStyle = this.empTimer > 0 ? '#555' : '#ff3131'; 
-            ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill(); 
-        });
+            e.y = 999;
+        } else if(e.type === 'crate_credit') {
+            this.creditsThisRun += e.amt; e.y = 999;
+        } else if(e.type === 'crate_tech') {
+            this.tech = e.tech; 
+            this.techTimer = 600; 
+            e.y = 999;
+        } else if(['mob', 'trash', 'asteroid'].includes(e.type)) {
+            this.damageSquad(); e.y = 999;
+        }
     }
 
+    damageSquad() {
+        if(this.squad.length === 0) return;
+        const idx = Math.floor(Math.random() * this.squad.length);
+        this.squad[idx].hp--;
+        if(this.squad[idx].hp <= 0) {
+            const u = this.squad.splice(idx, 1)[0];
+            if(u.type === 'perma') this.upgrades.perma--;
+            if(u.type === 'temp') this.upgrades.temp--;
+            if(this.squad.length === 0) this.gameOver();
+        }
+    }
+
+    drawPixelObj(dIdx, color, x, y, scale, isWallpaper = false) {
+        const design = DESIGNS[dIdx];
+        const p = 5 * scale;
+        const w = design[0].length * p;
+        const h = design.length * p;
+        ctx.save();
+        ctx.translate(Math.floor(x - w / 2), Math.floor(y - h / 2));
+        
+        ctx.shadowBlur = isWallpaper ? 25 : (10 * scale);
+        ctx.shadowColor = color;
+        ctx.fillStyle = color;
+        
+        design.forEach((row, r) => {
+            [...row].forEach((char, c) => {
+                if(char === 'X') ctx.fillRect(c * p, r * p, p, p);
+            });
+        });
+        
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#fff';
+        design.forEach((row, r) => {
+            [...row].forEach((char, c) => {
+                if(char === 'X') ctx.fillRect(c * p + 1, r * p + 1, p - 2, p - 2);
+            });
+        });
+        ctx.restore();
+    }
+
+    draw() {
+        ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+        this.stars.forEach(s => {
+            ctx.fillStyle = `rgba(255,255,255,${0.3 * s.z})`;
+            ctx.fillRect(Math.floor(s.x), Math.floor(s.y), s.z, s.z);
+        });
+
+        if(!this.active) {
+            this.menuMobs.forEach(m => { this.drawPixelObj(m.d, m.c, m.x, m.y, m.scale, true); });
+        } else {
+            this.entities.forEach(e => {
+                if(e.type === 'gate') {
+                    const isGreen = e.gateType === 'green';
+                    const color = isGreen ? '#39ff14' : '#ff3131';
+                    const gateHeight = 40; const pillarWidth = 10;
+                    
+                    ctx.shadowBlur = 15; ctx.shadowColor = color; ctx.fillStyle = color;
+                    ctx.fillRect(e.x - e.w / 2 - pillarWidth / 2, e.y - gateHeight / 2, pillarWidth, gateHeight);
+                    ctx.fillRect(e.x + e.w / 2 - pillarWidth / 2, e.y - gateHeight / 2, pillarWidth, gateHeight);
+                    
+                    ctx.shadowBlur = 0; ctx.globalAlpha = 0.15;
+                    ctx.fillRect(e.x - e.w / 2, e.y - gateHeight / 2 + 5, e.w, gateHeight - 10);
+                    
+                    ctx.globalAlpha = 0.3;
+                    for(let i = -e.w / 2; i < e.w / 2; i += 40) {
+                        const offset = (this.frame % 40);
+                        ctx.fillRect(e.x + i + offset - 20, e.y - gateHeight / 2 + 5, 2, gateHeight - 10);
+                    }
+                    ctx.globalAlpha = 1.0; 
+                    
+                    ctx.fillStyle = '#222';
+                    ctx.fillRect(e.x - 40, e.y - gateHeight / 2 - 12, 80, 4);
+                    
+                    if (isGreen) {
+                        ctx.fillStyle = color; 
+                        ctx.fillRect(e.x - 40, e.y - gateHeight / 2 - 12, 80 * (e.charge / e.maxCharge), 4);
+                        
+                        const potential = Math.floor((e.charge / e.maxCharge) * e.rewardMax);
+                        ctx.fillStyle = '#fff'; ctx.font = '900 12px Orbitron'; ctx.textAlign = 'center';
+                        ctx.fillText(`CHARGE: +${potential}`, e.x, e.y + 5);
+                    } else {
+                        ctx.fillStyle = color; 
+                        ctx.fillRect(e.x - 40, e.y - gateHeight / 2 - 12, 80 * (e.hp / e.maxHp), 4);
+                        ctx.fillStyle = '#fff'; ctx.font = '900 12px Orbitron'; ctx.textAlign = 'center';
+                        ctx.fillText('BARRIER', e.x, e.y + 5);
+                    }
+                } else if(e.type === 'crate_tech') {
+                    ctx.fillStyle = e.color || '#bc13fe'; 
+                    ctx.shadowBlur = 15; ctx.shadowColor = e.color;
+                    ctx.fillRect(e.x - 30, e.y - 20, 60, 40); 
+                    ctx.shadowBlur = 0; ctx.strokeStyle = '#fff'; ctx.strokeRect(e.x - 30, e.y - 20, 60, 40);
+                    ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Orbitron'; ctx.textAlign = 'center';
+                    ctx.fillText(e.tech, e.x, e.y + 5);
+                } else if(e.type === 'crate_credit') {
+                    ctx.fillStyle = '#ffcc00'; ctx.strokeStyle = '#fff';
+                    ctx.strokeRect(e.x - 25, e.y - 25, 50, 50); ctx.fillRect(e.x - 25, e.y - 25, 50, 50);
+                    ctx.fillStyle = '#000'; ctx.font = 'bold 24px Orbitron'; ctx.textAlign = 'center';
+                    ctx.fillText('$', e.x, e.y + 10);
+                } else {
+                    let s = e.scale;
+                    if(e.type === 'asteroid') s *= (0.4 + 0.6 * (e.hp / e.maxHp));
+                    this.drawPixelObj(e.d, e.c, e.x, e.y, s);
+                    if(e.hp < e.maxHp && e.type !== 'boss') {
+                        const barW = 30 * s;
+                        ctx.fillStyle = '#222'; ctx.fillRect(e.x - barW / 2, e.y - (25 * s), barW, 4);
+                        ctx.fillStyle = (e.hp / e.maxHp > 0.4) ? '#39ff14' : '#ff3131';
+                        ctx.fillRect(e.x - barW / 2, e.y - (25 * s), barW * (e.hp / e.maxHp), 4);
+                    }
+                }
+            });
+
+            this.bullets.forEach(b => {
+                ctx.shadowBlur = 10;
+                if(b.type === 'PLASMA') { ctx.fillStyle = '#bc13fe'; ctx.shadowColor = '#bc13fe'; ctx.fillRect(b.x - 4, b.y, 8, 20); }
+                else if(b.type === 'PULSE') { ctx.fillStyle = '#00f2ff'; ctx.shadowColor = '#00f2ff'; ctx.fillRect(b.x - 1, b.y, 2, 12); }
+                else if(b.type === 'BURST') { ctx.fillStyle = '#ffcc00'; ctx.shadowColor = '#ffcc00'; ctx.fillRect(b.x - 2, b.y, 4, 10); }
+                else if(b.type === 'EMP') { ctx.fillStyle = '#39ff14'; ctx.shadowColor = '#39ff14'; ctx.fillRect(b.x - 5, b.y, 10, 10); }
+                else { ctx.fillStyle = '#fff'; ctx.shadowColor = '#00f2ff'; ctx.fillRect(Math.floor(b.x - 2), Math.floor(b.y), 4, 15); }
+                ctx.shadowBlur = 0;
+            });
+
+            this.enemyBullets.forEach(eb => {
+                ctx.fillStyle = '#ff3131'; ctx.shadowBlur = 10; ctx.shadowColor = '#f00';
+                ctx.beginPath(); ctx.arc(Math.floor(eb.x), Math.floor(eb.y), 6, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+            });
+
+            this.squad.forEach(u => { this.drawPixelObj(0, u.color, u.x, u.y, 0.7); });
+        }
+    }
+
+    gameOver() { 
+        this.active = false; this.isFiring = false; this.totalCredits += this.creditsThisRun; 
+        this.updateHUDVisibility(false);
+        document.getElementById('death-overlay').style.display = 'flex'; 
+    }
+    victory() { 
+        this.active = false; this.isFiring = false; this.totalCredits += this.creditsThisRun + 1000; 
+        this.updateHUDVisibility(false);
+        document.getElementById('victory-overlay').style.display = 'flex'; 
+    }
+    showMenu() { 
+        this.active = false; this.isFiring = false; this.updateHUDVisibility(false);
+        document.querySelectorAll('.overlay').forEach(o => o.style.display = 'none');
+        document.getElementById('menu-overlay').style.display = 'flex'; 
+    }
+    openMarket() {
+        this.updateHUDVisibility(false);
+        document.querySelectorAll('.overlay').forEach(o => o.style.display = 'none');
+        document.getElementById('market-overlay').style.display = 'flex';
+        document.getElementById('market-credits').innerText = Math.floor(this.totalCredits);
+        const container = document.getElementById('market-items');
+        const list = [
+            { id: 'hull', n: `STRUCTURAL HULL (+${this.upgrades.hull})`, p: 1000 },
+            { id: 'speed', n: `PLASMA FIRE RATE (+${this.upgrades.speed})`, p: 1500 },
+            { id: 'perma', n: `PERMANENT MERCENARY`, p: 5000 },
+            { id: 'temp', n: `SECTOR MERCENARY (TEMP)`, p: 800 },
+            { id: 'c1', n: 'PAINT: NEON PINK', p: 500, c: '#ff0077' },
+            { id: 'c2', n: 'PAINT: NEON GREEN', p: 500, c: '#39ff14' },
+            { id: 'c3', n: 'PAINT: NEON PURPLE', p: 500, c: '#bc13fe' }
+        ];
+        container.innerHTML = list.map(i => {
+            const dis = this.totalCredits < i.p;
+            const click = i.c ? `game.buyColor('${i.c}', ${i.p})` : `game.buyUp('${i.id}', ${i.p})`;
+            return `<button class="btn" ${dis ? 'disabled' : ''} onclick="${click}">${i.n} - ${i.p} CR</button>`;
+        }).join('');
+    }
+    buyUp(id, p) { if(this.totalCredits >= p){ this.totalCredits -= p; this.upgrades[id]++; this.openMarket(); } }
+    buyColor(c, p) { if(this.totalCredits >= p){ this.totalCredits -= p; this.upgrades.color = c; this.openMarket(); } }
+    closeMarket() { this.showMenu(); }
     loop() { this.update(); this.draw(); requestAnimationFrame(() => this.loop()); }
 }
+
 const game = new Game();
 </script>
 </body>
