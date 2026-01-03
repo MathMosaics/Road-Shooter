@@ -155,117 +155,115 @@
 </div>
 
 <script>
-/** * AUDIO SYSTEM
+/** * MOBILE COMPATIBLE AUDIO SYSTEM
  */
 const Sound = {
     ctx: null,
     echoBus: null,
-    activeOscillators: [],
+    isUnlocked: false,
     
     init() {
-        if (this.ctx) return;
-        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (this.ctx) {
+            if (this.ctx.state === 'suspended') this.ctx.resume();
+            return;
+        }
         
-        this.echoBus = this.ctx.createDelay();
-        this.echoBus.delayTime.value = 0.2;
-        const feedback = this.ctx.createGain();
-        feedback.gain.value = 0.3;
-        
-        this.echoBus.connect(feedback);
-        feedback.connect(this.echoBus);
-        this.echoBus.connect(this.ctx.destination);
-    },
+        try {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Standard check for iOS silent mode / suspended state
+            if (this.ctx.state === 'suspended') {
+                this.ctx.resume();
+            }
 
-    stopAll() {
-        if (!this.ctx) return;
-        this.activeOscillators.forEach(osc => { try { osc.stop(); } catch(e) {} });
-        this.activeOscillators = [];
+            this.echoBus = this.ctx.createDelay();
+            this.echoBus.delayTime.value = 0.15;
+            const feedback = this.ctx.createGain();
+            feedback.gain.value = 0.2;
+            
+            this.echoBus.connect(feedback);
+            feedback.connect(this.echoBus);
+            this.echoBus.connect(this.ctx.destination);
+            
+            this.isUnlocked = true;
+            console.log("Audio Initialized");
+        } catch (e) {
+            console.warn("WebAudio not supported");
+        }
     },
 
     playWeapon(type) {
-        if (!this.ctx || !game.active) return;
+        if (!this.ctx || !this.isUnlocked) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         gain.connect(this.ctx.destination);
-        gain.connect(this.echoBus);
-
+        
         let dur = 0.1;
 
         switch(type) {
             case 'PULSE':
                 osc.type = 'square';
                 osc.frequency.setValueAtTime(800, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.08);
-                gain.gain.setValueAtTime(0.06, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.04, this.ctx.currentTime);
                 break;
             case 'BURST':
                 osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(440, this.ctx.currentTime);
                 osc.frequency.exponentialRampToValueAtTime(200, this.ctx.currentTime + 0.05);
-                gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.06, this.ctx.currentTime);
                 dur = 0.06;
                 break;
             case 'PLASMA':
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(120, this.ctx.currentTime);
-                osc.frequency.linearRampToValueAtTime(600, this.ctx.currentTime + 0.15);
-                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(800, this.ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
                 dur = 0.2;
                 break;
-            case 'EMP':
-                this.playNoise(0.1, 1000, 0.08);
-                return;
             default:
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(300, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(10, this.ctx.currentTime + 0.1);
-                gain.gain.setValueAtTime(0.04, this.ctx.currentTime);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.03, this.ctx.currentTime);
         }
 
         gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
         osc.connect(gain);
         osc.start();
         osc.stop(this.ctx.currentTime + dur);
-        this.activeOscillators.push(osc);
     },
 
     playHit() {
-        if (!this.ctx || !game.active) return;
+        if (!this.ctx || !this.isUnlocked) return;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        osc.type = 'sine';
+        osc.type = 'triangle';
         osc.frequency.setValueAtTime(1200, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(400, this.ctx.currentTime + 0.03);
+        osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.04);
         gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.04);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start();
-        osc.stop(this.ctx.currentTime + 0.03);
-    },
-
-    playNoise(duration, freq, vol) {
-        if (!this.ctx) return;
-        const noise = this.ctx.createBufferSource();
-        const buffer = this.ctx.createBuffer(1, this.ctx.sampleRate * duration, this.ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < buffer.length; i++) data[i] = Math.random() * 2 - 1;
-        noise.buffer = buffer;
-        const gain = this.ctx.createGain();
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.value = freq;
-        noise.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.ctx.destination);
-        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
-        noise.start();
+        osc.stop(this.ctx.currentTime + 0.04);
     },
 
     playExplosion() {
-        if (!this.ctx) return;
-        this.playNoise(0.4, 100, 0.2);
+        if (!this.ctx || !this.isUnlocked) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(30, this.ctx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.4);
     }
 };
 
@@ -393,15 +391,24 @@ class Game {
             const deckWidth = deck.offsetWidth;
             glow.style.left = (relX * deckWidth - 60) + "px";
         };
-        window.addEventListener('touchstart', (e) => { 
+        
+        // Audio unlock on any interaction
+        const unlock = () => {
             Sound.init();
+            window.removeEventListener('touchstart', unlock);
+            window.removeEventListener('mousedown', unlock);
+        };
+        window.addEventListener('touchstart', unlock);
+        window.addEventListener('mousedown', unlock);
+
+        window.addEventListener('touchstart', (e) => { 
             if (!this.active) return; 
             this.isFiring = true; handleInteraction(e.touches[0].clientX); 
         }, { passive: false });
         window.addEventListener('touchmove', (e) => { if (!this.active) return; e.preventDefault(); handleInteraction(e.touches[0].clientX); }, { passive: false });
         window.addEventListener('touchend', () => { this.isFiring = false; });
+        
         window.addEventListener('mousedown', (e) => { 
-            Sound.init();
             if (!this.active) return; 
             this.isFiring = true; handleInteraction(e.clientX); 
         });
@@ -445,7 +452,7 @@ class Game {
         }
         else if(r < 0.92) {
             if(Math.random() > 0.4 && this.entities.filter(e => e.type === 'crate_tech').length === 0) {
-                const techs = [{ name: 'PULSE', color: '#00f2ff' }, { name: 'BURST', color: '#ffcc00' }, { name: 'PLASMA', color: '#bc13fe' }, { name: 'EMP', color: '#39ff14' }];
+                const techs = [{ name: 'PULSE', color: '#00f2ff' }, { name: 'BURST', color: '#ffcc00' }, { name: 'PLASMA', color: '#bc13fe' }];
                 const t = techs[Math.floor(Math.random() * techs.length)];
                 this.entities.push({ type: 'crate_tech', tech: t.name, color: t.color, x: 50 + Math.random() * (GAME_WIDTH - 100), y: -50 });
             } else {
@@ -497,8 +504,6 @@ class Game {
                     [-2, 0, 2].forEach(vx => this.bullets.push({ x: u.x, y: u.y - 10, vx: vx, vy: -12, type: this.tech }));
                 } else if(this.tech === 'PULSE') {
                     this.bullets.push({ x: u.x, y: u.y - 10, vx: 0, vy: -18, type: this.tech });
-                } else if(this.tech === 'EMP') {
-                    this.bullets.push({ x: u.x, y: u.y - 10, vx: 0, vy: -10, type: this.tech });
                 } else {
                     this.bullets.push({ x: u.x, y: u.y - 10, vx: 0, vy: -15, type: this.tech });
                 }
@@ -545,22 +550,16 @@ class Game {
                 const box = e.type === 'gate' ? {w: e.w, h: 40} : {w: 40 * currentScale, h: 30 * currentScale};
                 
                 if(Math.abs(b.x - e.x) < box.w / 2 && Math.abs(b.y - e.y) < box.h / 2) {
-                    // GREEN GATE LOGIC: Permeable
                     if (e.type === 'gate' && e.gateType === 'green') {
-                        // If fully charged, bullets pass through 100%
-                        if (e.charge >= e.maxCharge) {
-                            return; 
-                        }
-                        // If charging, 50% chance to pass through, 50% chance to be absorbed for charge
+                        if (e.charge >= e.maxCharge) return; 
                         if (Math.random() > 0.5) {
                             e.charge = Math.min(e.maxCharge, e.charge + 2); 
-                            b.y = -999; // Bullet absorbed
+                            b.y = -999; 
                         }
-                        return; // Let bullet continue if not absorbed
+                        return;
                     }
 
-                    // NORMAL DAMAGE LOGIC
-                    let dmg = (this.tech === 'PLASMA') ? 40 : (this.tech === 'PULSE' ? 15 : (this.tech === 'EMP' ? 100 : 10));
+                    let dmg = (this.tech === 'PLASMA') ? 40 : (this.tech === 'PULSE' ? 15 : 10);
                     e.hp -= dmg; b.y = -999;
                     
                     if(['elite', 'boss'].includes(e.type)) {
@@ -584,7 +583,6 @@ class Game {
 
         this.entities.forEach(e => {
             if(e.invuln > 0) e.invuln--;
-
             if(e.type === 'boss') {
                 if(e.y < 160) e.y += 0.8;
                 else { 
@@ -592,7 +590,6 @@ class Game {
                     e.x = GAME_WIDTH / 2 + Math.sin(e.phase) * 110; 
                     e.y = 160 + Math.cos(e.phase * 0.7) * 20;
                 }
-                
                 if(this.frame % 130 < 50 && this.frame % 18 === 0) {
                     for(let i = -1; i <= 1; i++) {
                         const angle = (Math.PI / 2) + (i * 0.3);
@@ -703,16 +700,12 @@ class Game {
                 if(e.type === 'gate') {
                     const isGreen = e.gateType === 'green';
                     const color = isGreen ? '#39ff14' : '#ff3131';
-                    
-                    // Pulsing effect for green gates that are permeable
                     const alpha = (isGreen && e.charge < e.maxCharge) ? (0.6 + Math.sin(this.frame * 0.2) * 0.2) : 1.0;
-                    
                     ctx.save();
                     ctx.globalAlpha = alpha;
                     ctx.shadowBlur = 15; ctx.shadowColor = color; ctx.fillStyle = color;
                     ctx.fillRect(e.x - e.w / 2 - 5, e.y - 20, 10, 40); ctx.fillRect(e.x + e.w / 2 - 5, e.y - 20, 10, 40);
                     ctx.shadowBlur = 0; ctx.globalAlpha = isGreen ? 0.1 : 0.25; ctx.fillRect(e.x - e.w / 2, e.y - 15, e.w, 30);
-                    
                     ctx.restore();
                     ctx.fillStyle = '#222'; ctx.fillRect(e.x - 40, e.y - 32, 80, 4);
                     if (isGreen) {
@@ -733,7 +726,6 @@ class Game {
                 } else {
                     let s = e.scale * (['asteroid', 'elite', 'boss'].includes(e.type) ? (0.8 + 0.2 * (e.hp / e.maxHp)) : 1);
                     this.drawPixelObj(e.d, e.c, e.x, e.y, s, e.invuln > 0);
-                    
                     if (e.hp < e.maxHp && !['boss', 'elite'].includes(e.type)) {
                         ctx.fillStyle = '#300'; ctx.fillRect(e.x - 15, e.y + 15, 30, 3);
                         ctx.fillStyle = '#f33'; ctx.fillRect(e.x - 15, e.y + 15, 30 * (e.hp/e.maxHp), 3);
@@ -741,7 +733,7 @@ class Game {
                 }
             });
             this.bullets.forEach(b => {
-                ctx.shadowBlur = 10; ctx.fillStyle = b.type === 'PLASMA' ? '#bc13fe' : (b.type === 'PULSE' ? '#00f2ff' : (b.type === 'BURST' ? '#ffcc00' : (b.type === 'EMP' ? '#39ff14' : '#fff')));
+                ctx.shadowBlur = 10; ctx.fillStyle = b.type === 'PLASMA' ? '#bc13fe' : (b.type === 'PULSE' ? '#00f2ff' : (b.type === 'BURST' ? '#ffcc00' : '#fff'));
                 ctx.shadowColor = ctx.fillStyle; ctx.fillRect(b.x - 2, b.y, 4, 15); ctx.shadowBlur = 0;
             });
             this.enemyBullets.forEach(eb => {
@@ -755,20 +747,17 @@ class Game {
     gameOver() { 
         this.active = false; 
         this.totalCredits += this.creditsThisRun; 
-        Sound.stopAll();
         this.updateHUDVisibility(false); 
         document.getElementById('death-overlay').style.display = 'flex'; 
     }
     victory() { 
         this.active = false; 
         this.totalCredits += this.creditsThisRun + 2000; 
-        Sound.stopAll();
         this.updateHUDVisibility(false); 
         document.getElementById('victory-overlay').style.display = 'flex'; 
     }
     showMenu() { 
         this.active = false; 
-        Sound.stopAll();
         this.updateHUDVisibility(false); 
         document.querySelectorAll('.overlay').forEach(o => o.style.display = 'none'); 
         document.getElementById('menu-overlay').style.display = 'flex'; 
